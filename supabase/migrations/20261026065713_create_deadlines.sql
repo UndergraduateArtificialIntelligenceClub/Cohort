@@ -18,3 +18,36 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
         ON DELETE CASCADE
 );
 
+-- Enable row-level access control using the policies below.
+ALTER TABLE public.deadlines ENABLE ROW LEVEL SECURITY;
+
+-- Allow signed-in users to read only their own deadlines.
+CREATE POLICY "Users can read their own deadlines"
+ON public.deadlines
+FOR SELECT
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+-- Require new deadlines to belong to the signed-in user.
+CREATE POLICY "Users can insert their own deadlines"
+ON public.deadlines
+FOR INSERT
+TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- Allow users to edit their own deadlines while preventing
+-- ownership from being transferred to another user.
+CREATE POLICY "Users can update their own deadlines"
+ON public.deadlines
+FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- Allow signed-in users to delete only their own deadlines.
+CREATE POLICY "Users can delete their own deadlines"
+ON public.deadlines
+FOR DELETE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+

@@ -15,3 +15,6 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Supabase CLI temporary files
+/supabase/.temp/
