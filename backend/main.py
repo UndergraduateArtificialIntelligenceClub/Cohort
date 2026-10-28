@@ -10,7 +10,17 @@ from pydantic import BaseModel, ValidationError
 from models import ParseResponse
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+
+def get_client() -> genai.Client:
+    """Create the Gemini client, with a clear error if the key is missing."""
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        raise HTTPException(
+            status_code=500,
+            detail="GEMINI_API_KEY is not set. Add it to backend/.env (see .env.example).",
+        )
+    return genai.Client(api_key=key)
 MODEL = "gemini-3.5-flash-lite"
 
 app = FastAPI()
@@ -49,7 +59,7 @@ def extract_deadlines(text: str) -> ParseResponse:
         # Fields, in the same order as the Deadline model
         "course is the course code, like CMPUT 174. "
         "title is the item's name as written in the syllabus, like Assignment 2. "
-        "If several items share one name, number them in date order (Lab 1, Lab 2, ...). "
+        "Every deadline must have a unique title. If the syllabus doesn't number them, number them in date order (Quiz 1, Quiz 2, ...). "
         "Write dates as YYYY-MM-DD. If a date has no year, use the year of the term named in the syllabus "
         "(e.g., Winter 2026 -> 2026). "
         f"If no term is given, use the year {today.year}. "
@@ -64,12 +74,16 @@ def extract_deadlines(text: str) -> ParseResponse:
         "If several dates are listed for one kind of item, make one deadline per date "
         "(e.g., 'Labs: Sept 10, 17, 24, Oct 1 (20% total)' -> four lab deadlines, 5% each). "
         "Ignore dates that are not deadlines: publication dates, document dates, add/drop deadlines, holidays. "
-        "Ignore unfilled template text, such as 'Assignment [X] is due on [DATE].'"
+        "Ignore unfilled template text, such as 'Assignment [X] is due on [DATE].' "
+        "If there is a range of dates, use the last date (e.g., 'Oct 1-5' -> Oct 5). "
+        "If something is optional, like a bonus assignment, include it. "
+        "if it has bonus points, include them in the weight with note (optional) in the title. "
         "\n\nSyllabus text:\n"
         + text
     )
 
     # Ask Gemini. Only the network call is in this try.
+    client = get_client()
     try:
         interaction = client.interactions.create(
             model=MODEL,
