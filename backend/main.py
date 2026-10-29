@@ -1,5 +1,6 @@
 import os
 from datetime import date
+from functools import lru_cache
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -10,17 +11,6 @@ from pydantic import BaseModel, ValidationError
 from models import ParseResponse
 
 load_dotenv()
-
-
-def get_client() -> genai.Client:
-    """Create the Gemini client, with a clear error if the key is missing."""
-    key = os.getenv("GEMINI_API_KEY")
-    if not key:
-        raise HTTPException(
-            status_code=500,
-            detail="GEMINI_API_KEY is not set. Add it to backend/.env (see .env.example).",
-        )
-    return genai.Client(api_key=key)
 MODEL = "gemini-3.5-flash-lite"
 
 app = FastAPI()
@@ -39,6 +29,18 @@ app.add_middleware(
 
 class ParseRequest(BaseModel):
     text: str
+
+
+@lru_cache(maxsize=1)
+def get_client() -> genai.Client:
+    """Create the Gemini client once, on first use, and reuse it after."""
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        raise HTTPException(
+            status_code=500,
+            detail="GEMINI_API_KEY is not set. Add it to backend/.env (see .env.example).",
+        )
+    return genai.Client(api_key=key)
 
 
 def gemini_error(e: Exception) -> HTTPException:
@@ -82,8 +84,10 @@ def extract_deadlines(text: str) -> ParseResponse:
         + text
     )
 
-    # Ask Gemini. Only the network call is in this try.
+    # Get the shared client (created on the first request).
     client = get_client()
+
+    # Ask Gemini. Only the network call is in this try.
     try:
         interaction = client.interactions.create(
             model=MODEL,
