@@ -4,34 +4,6 @@ import ReviewPopup from "../components/ReviewPopup";
 import { API } from "../lib/config";
 import type { Deadline, ParseResponse } from "../types";
 
-// Set this to false once the backend /parse and /parse-pdf endpoints are ready.
-const USE_FAKE = true;
-
-// Mock data used while USE_FAKE is true. Delete once /parse-pdf (#25) is merged.
-const FAKE_RESPONSE: ParseResponse = {
-  deadlines: [
-    {
-      course: "CMPUT 174",
-      title: "Assignment 1",
-      date: "2026-09-20",
-      category: "assignment",
-      source_text: "Assignment 1 is due September 20.",
-      weight: 10,
-    },
-    {
-      course: "CMPUT 174",
-      title: "Midterm",
-      date: "2026-10-15",
-      category: "midterm",
-      source_text: "The midterm exam is on October 15.",
-      weight: 25,
-    }
-  ],
-  instructor: "Dr. Smith",
-};
-
-
-
 function Upload() {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File|null>(null);
@@ -67,12 +39,9 @@ function Upload() {
     try {
       let data: ParseResponse;
 
-      if (USE_FAKE) {
-        await new Promise((r) => setTimeout(r, 1000)); 
-        data = FAKE_RESPONSE;
-      } else if (file) {
-        const form = new FormData();   
-        form.append("file", file);    // field name must match the /parse-pdf endpoint (#25). Update if it uses a different name
+      if (file) {
+        const form = new FormData();
+        form.append("file", file);    // matches the /parse-pdf endpoint (#25)
         const res = await fetch(`${API}/parse-pdf`, { method: "POST", body: form });
         if (!res.ok) throw new Error(await readError(res));
         data = await res.json();
@@ -80,13 +49,13 @@ function Upload() {
         const res = await fetch(`${API}/parse`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }), 
+          body: JSON.stringify({ text }),
         });
         if (!res.ok) throw new Error(await readError(res));
         data = await res.json();
       }
 
-      setPending(data.deadlines); 
+      setPending(data.deadlines);
     } catch (e) {
       if (e instanceof TypeError) {
         setError("Couldn't reach the server. Is the backend running?");
@@ -109,7 +78,7 @@ function Upload() {
         placeholder = "Paste your syllabus text here..."
         className = "h-48 w-full rounded border p-2"
       />
-      <label 
+      <label
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {e.preventDefault(); pickFile(e.dataTransfer.files[0]);}}
         className = "flex h-32 cursor-pointer items-center justify-center rounded border-2 border-dashed text-gray-500"
@@ -138,7 +107,7 @@ function Upload() {
           onDone={(confirmed) => {
             // TODO: save confirmed deadlines to the database (not part of #28)
             console.log("Confirmed:", confirmed);
-            setPending(null);          
+            setPending(null);
           }}
         />
       )}
