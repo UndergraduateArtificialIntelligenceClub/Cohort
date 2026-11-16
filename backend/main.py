@@ -3,9 +3,10 @@ from datetime import date
 from functools import lru_cache
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
+import httpx
 from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader 
 
@@ -30,6 +31,33 @@ app.add_middleware(
 
 class ParseRequest(BaseModel):
     text: str
+
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+
+def require_user(authorization: str | None = Header(default=None)) -> dict:
+    """Check the login token with Supabase, so only logged in users can spend our Gemini quota."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        # No Supabase keys in backend/.env: allow it locally so teammates can still work on parsing,
+        # like the frontend does. FRONTEND_URL is only set on the deployed backend, so refuse there.
+        if os.getenv("FRONTEND_URL"):
+            raise HTTPException(status_code=500, detail="Supabase isn't set up on the backend.")
+        return {}
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Please log in first.")
+    try:
+        res = httpx.get(
+            f"{SUPABASE_URL}/auth/v1/user",
+            headers={"Authorization": authorization, "apikey": SUPABASE_KEY},
+            timeout=10,
+        )
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="Couldn't reach Supabase to check your login. Try again.")
+    if res.status_code != 200:
+        raise HTTPException(status_code=401, detail="Your login expired. Please log in again.")
+    return res.json()
 
 
 @lru_cache(maxsize=1)
@@ -123,14 +151,14 @@ def home():
 
 
 @app.post("/parse", response_model=ParseResponse)
-def parse(req: ParseRequest):
+def parse(req: ParseRequest, user: dict = Depends(require_user)):
     if req.text.strip() == "":
         raise HTTPException(status_code=400, detail="No syllabus text provided.")
     return extract_deadlines(req.text)
 
 
 @app.post("/parse-pdf", response_model=ParseResponse)
-def parse_pdf(file: UploadFile):
+def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
     try:
         reader = PdfReader(file.file)
         text = ""

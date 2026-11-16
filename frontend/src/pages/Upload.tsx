@@ -5,6 +5,7 @@ import ReviewPopup from "../components/ReviewPopup";
 import { API } from "../lib/config";
 import { saveDeadlines } from "../lib/deadlines";
 import type { Deadline, ParseResponse } from "../types";
+import { authHeaders } from "../lib/supabase";
 
 function Upload() {
   const [text, setText] = useState("");
@@ -61,17 +62,18 @@ function Upload() {
     setError("");
     try {
       let data: ParseResponse;
+      const auth = await authHeaders(); // the backend only parses for logged in users
 
       if (file) {
         const form = new FormData();
         form.append("file", file);    // matches the /parse-pdf endpoint (#25)
-        const res = await fetch(`${API}/parse-pdf`, { method: "POST", body: form });
+        const res = await fetch(`${API}/parse-pdf`, { method: "POST", headers: auth, body: form });
         if (!res.ok) throw new Error(await readError(res));
         data = await res.json();
       } else {
         const res = await fetch(`${API}/parse`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...auth },
           body: JSON.stringify({ text }),
         });
         if (!res.ok) throw new Error(await readError(res));
