@@ -3,10 +3,11 @@ from datetime import date
 from functools import lru_cache
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 from pydantic import BaseModel, ValidationError
+from pypdf import PdfReader 
 
 from models import ParseResponse
 
@@ -126,3 +127,28 @@ def parse(req: ParseRequest):
     if req.text.strip() == "":
         raise HTTPException(status_code=400, detail="No syllabus text provided.")
     return extract_deadlines(req.text)
+
+
+@app.post("/parse-pdf", response_model=ParseResponse)
+def parse_pdf(file: UploadFile):
+    try:
+        reader = PdfReader(file.file)
+        text = ""
+
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text is not None:
+                text += page_text + "\n"
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Couldn't read this PDF, try pasting the text."
+        )
+    if not text.strip():
+        raise HTTPException(
+            status_code=400, 
+            detail="Couldn't read this PDF, try pasting the text."
+        )
+
+    return extract_deadlines(text)
