@@ -1,7 +1,9 @@
 // Upload page UI: issue #28
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import ReviewPopup from "../components/ReviewPopup";
 import { API } from "../lib/config";
+import { saveDeadlines } from "../lib/deadlines";
 import type { Deadline, ParseResponse } from "../types";
 
 function Upload() {
@@ -10,6 +12,27 @@ function Upload() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState<Deadline[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Confirmed deadlines that failed to save, kept so the user can retry instead of losing them
+  const [unsaved, setUnsaved] = useState<Deadline[] | null>(null);
+  const navigate = useNavigate();
+
+  // Save what the user confirmed in the review popup, then show it on the calendar
+  async function save(confirmed: Deadline[]) {
+    if (confirmed.length === 0) return;
+    setSaving(true);
+    setError("");
+    try {
+      await saveDeadlines(confirmed);
+      setUnsaved(null);
+      navigate("/");
+    } catch (e) {
+      setUnsaved(confirmed);
+      setError(e instanceof Error ? e.message : "Couldn't save deadlines.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function pickFile(f: File | undefined){
     if (!f) return;
@@ -93,7 +116,7 @@ function Upload() {
       </label>
       <button
         onClick={handleSubmit}
-        disabled={loading || (!text.trim() && !file)}
+        disabled={loading || saving || (!text.trim() && !file)}
         className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
       >
         {loading ? "Parsing..." : "Parse syllabus"}
@@ -101,13 +124,20 @@ function Upload() {
 
       {error && <p className="text-red-600">{error}</p>}
 
+      {saving && <p className="text-gray-600">Saving deadlines...</p>}
+
+      {unsaved && !saving && (
+        <button onClick={() => save(unsaved)} className="self-start rounded border px-4 py-2">
+          Try saving again
+        </button>
+      )}
+
       {pending && (
         <ReviewPopup
           pending={pending}
           onDone={(confirmed) => {
-            // TODO: save confirmed deadlines to the database (not part of #28)
-            console.log("Confirmed:", confirmed);
             setPending(null);
+            save(confirmed);
           }}
         />
       )}
