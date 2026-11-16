@@ -10,3 +10,11 @@ export const supabaseConfigured = url !== "" && key !== "";
 
 // createClient crashes on an empty URL, so without keys it gets a placeholder that is never called.
 export const supabase = createClient(url || "http://localhost", key || "missing-key");
+
+// The logged in user's token for backend requests, so the backend knows who's asking.
+// Empty when no one is logged in (e.g. Supabase isn't set up locally).
+export async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
