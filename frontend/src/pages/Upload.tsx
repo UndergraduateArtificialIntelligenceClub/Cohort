@@ -2,8 +2,8 @@
 import { useState } from "react";
 import ReviewPopup from "../components/ReviewPopup";
 import { API } from "../lib/config";
-import { authHeaders } from "../lib/supabase";
 import type { Deadline, ParseResponse } from "../types";
+import { authHeaders } from "../lib/supabase";
 
 function Upload() {
   const [text, setText] = useState("");
