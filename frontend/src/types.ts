@@ -3,6 +3,8 @@
 export type Category = "assignment" | "lab" | "quiz" | "midterm" | "final" | "other";
 
 export type Deadline = {
+  id?: string;
+  done?: boolean;
   course: string; // e.g. "CMPUT 174"
   title: string; // e.g. "Assignment 2"
   date: string; // "YYYY-MM-DD"

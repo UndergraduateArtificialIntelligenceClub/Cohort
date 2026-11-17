@@ -5,7 +5,7 @@ import type { Deadline } from "../types";
 // The deadlines table and its row-level security come from supabase/migrations (#30).
 
 // Only the columns that make up a Deadline, so loaded rows match the type
-const COLUMNS = "course, title, date, category, source_text, weight";
+const COLUMNS = "id, done, course, title, date, category, source_text, weight";
 
 // The logged in user's id. Supabase rejects reads and writes from anyone else.
 async function currentUserId(): Promise<string> {
