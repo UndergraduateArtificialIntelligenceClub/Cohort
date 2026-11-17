@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+/* Remove FullCalendar's default event bars so custom event pills from Calendar.tsx do the visual styling instead. */
+.custom-event {
+  background: transparent !important; 
+  border: none !important;
+}
+
+.custom-event .fc-event-main {
+  padding: 0 !important;
+}
