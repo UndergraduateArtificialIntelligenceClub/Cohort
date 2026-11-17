@@ -36,3 +36,45 @@ export async function loadDeadlines(): Promise<Deadline[]> {
   if (error) throw new Error(`Couldn't load deadlines: ${error.message}`);
   return data as Deadline[];
 }
+
+// Update the fields on an existing deadline
+export async function updateDeadline(
+  id: string,
+  changes: Partial<Deadline>
+): Promise<void> {
+  const { error } = await supabase
+    .from("deadlines")
+    .update(changes)
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Couldn't update deadline: ${error.message}`);
+  }
+}
+
+// Delete a deadline
+export async function deleteDeadline(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("deadlines")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Couldn't delete deadline: ${error.message}`);
+  }
+}
+
+// Mark a deadline as done or not done
+export async function setDone(
+  id: string,
+  done: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from("deadlines")
+    .update({ done })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Couldn't update deadline status: ${error.message}`);
+  }
+}
