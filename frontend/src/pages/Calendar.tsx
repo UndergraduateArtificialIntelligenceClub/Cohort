@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { loadDeadlines } from "../lib/deadlines";
+import { loadDeadlines, setDone, deleteDeadline, updateDeadline} from "../lib/deadlines";
 import type { Deadline } from "../types";
 import FullCalendar from "@fullcalendar/react";
 import themePlugin from "@fullcalendar/react/themes/monarch";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
+import DeadlineModal from "../components/DeadlineModal";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/monarch/theme.css";
@@ -21,6 +22,7 @@ function colorCourses(deadlines: Deadline[]): Record<string, string> {
 function Calendar() {
   const [deadlines, setDeadlines] = useState<Deadline[] | null>(null);
   const [error, setError] = useState("");
+  const [selectedDeadline, setSelectedDeadline] = useState<Deadline | null>(null);
 
   // Load the logged in user's saved deadlines from Supabase
   useEffect(() => {
@@ -32,13 +34,15 @@ function Calendar() {
   const courseColors = colorCourses(deadlines ?? []);
   // Convert Deadline objects into FullCalendar events.
   const events = (deadlines ?? []).map((deadline) => ({
-    title: `${deadline.course}: ${deadline.title}`,
+    title: deadline.title,
     date: deadline.date,
-    color: courseColors[deadline.course],
+    extendedProps: {
+      deadline,
+    },
   }));
 
   return (
-    <main className="flex flex-col gap-4 p-8">
+    <main className="flex flex-col gap-4 p-6">
       <h1 className="text-2xl font-bold">Calendar</h1>
       {error && <p className="text-red-600">{error}</p>}
       {!deadlines && !error && <p className="text-gray-600">Loading deadlines...</p>}
@@ -61,7 +65,49 @@ function Calendar() {
           ))}
         </ul>
       )}
-      <FullCalendar plugins={[themePlugin, dayGridPlugin]} initialView="dayGridMonth" events={events} headerToolbar={{left: "prev,next", center: "title", right: "",}}/>
+      <FullCalendar 
+      plugins={[themePlugin, dayGridPlugin]} 
+      initialView="dayGridMonth" 
+      events={events}
+      fixedWeekCount={false} 
+      height="auto"
+      eventClick={(info) =>
+      setSelectedDeadline(info.event.extendedProps.deadline)}
+      eventClass={() => "custom-event"}
+      eventContent={(info) => {
+        const deadline = info.event.extendedProps.deadline;
+        const color = deadline.done ? "#9ca3af" : courseColors[deadline.course];
+          return (
+          <div className="rounded-full px-2 py-1 text-xs font-medium"  style={{ backgroundColor: `${color}30`, color, border: `1px solid ${color}`, textDecoration: deadline.done ? "line-through" : "none"}}>
+            {info.event.title}
+          </div>);
+      }}
+      headerToolbar={{left: "prev,next", center: "title", right: "",}}/>
+      {selectedDeadline && (<DeadlineModal
+        deadline={selectedDeadline}
+        onClose={() => setSelectedDeadline(null)}
+        onDone={async () => {
+          if (!selectedDeadline.id) return;
+          await setDone(selectedDeadline.id, !selectedDeadline.done);
+          setDeadlines((current) => current?.map((d) => 
+            d.id === selectedDeadline.id ? { ...d, done: !selectedDeadline.done} : d) ?? null);
+
+          setSelectedDeadline(null);
+        }}
+        onDelete={async () => {
+          if (!selectedDeadline.id) return;
+          await deleteDeadline(selectedDeadline.id);
+          setDeadlines((current) => current?.filter((d) => d.id !== selectedDeadline.id) ?? null);
+          setSelectedDeadline(null);
+        }}
+        onSave={async (changes) => {
+          if (!selectedDeadline?.id) return;
+          await updateDeadline(selectedDeadline.id, changes);
+          setDeadlines((current) => current?.map((d) => d.id === selectedDeadline.id ? { ...d, ...changes } : d) ?? null);
+          setSelectedDeadline(null);
+        }}
+      />
+    )}
     </main>
   );
 }
