@@ -2,6 +2,8 @@
 
 export type Category = "assignment" | "lab" | "quiz" | "midterm" | "final" | "other";
 
+export const CATEGORIES: Category[] = ["assignment", "lab", "quiz", "midterm", "final", "other"];
+
 export type Deadline = {
   id?: string;
   done?: boolean;

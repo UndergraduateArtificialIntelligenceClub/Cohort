@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { loadDeadlines, setDone, deleteDeadline, updateDeadline} from "../lib/deadlines";
+import { deleteDeadline, loadDeadlines, setDone, updateDeadline } from "../lib/deadlines";
 import type { Deadline } from "../types";
 import FullCalendar from "@fullcalendar/react";
 import themePlugin from "@fullcalendar/react/themes/monarch";
@@ -30,6 +30,12 @@ function Calendar() {
       .then(setDeadlines)
       .catch((e: Error) => setError(e.message));
   }, []);
+
+  // Put an edited deadline back into the list and the open popup
+  function replaceDeadline(updated: Deadline) {
+    setDeadlines((current) => current?.map((d) => (d.id === updated.id ? updated : d)) ?? null);
+    setSelectedDeadline(updated);
+  }
 
   const courseColors = colorCourses(deadlines ?? []);
   // Convert Deadline objects into FullCalendar events.
@@ -65,49 +71,57 @@ function Calendar() {
           ))}
         </ul>
       )}
-      <FullCalendar 
-      plugins={[themePlugin, dayGridPlugin]} 
-      initialView="dayGridMonth" 
-      events={events}
-      fixedWeekCount={false} 
-      height="auto"
-      eventClick={(info) =>
-      setSelectedDeadline(info.event.extendedProps.deadline)}
-      eventClass={() => "custom-event"}
-      eventContent={(info) => {
-        const deadline = info.event.extendedProps.deadline;
-        const color = deadline.done ? "#9ca3af" : courseColors[deadline.course];
+      <FullCalendar
+        plugins={[themePlugin, dayGridPlugin]}
+        initialView="dayGridMonth"
+        events={events}
+        fixedWeekCount={false}
+        height="auto"
+        eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
+        eventClass={() => "custom-event"}
+        eventContent={(info) => {
+          const deadline: Deadline = info.event.extendedProps.deadline;
+          const color = deadline.done ? "#9ca3af" : courseColors[deadline.course];
           return (
-          <div className="rounded-full px-2 py-1 text-xs font-medium"  style={{ backgroundColor: `${color}30`, color, border: `1px solid ${color}`, textDecoration: deadline.done ? "line-through" : "none"}}>
-            {info.event.title}
-          </div>);
-      }}
-      headerToolbar={{left: "prev,next", center: "title", right: "",}}/>
-      {selectedDeadline && (<DeadlineModal
-        deadline={selectedDeadline}
-        onClose={() => setSelectedDeadline(null)}
-        onDone={async () => {
-          if (!selectedDeadline.id) return;
-          await setDone(selectedDeadline.id, !selectedDeadline.done);
-          setDeadlines((current) => current?.map((d) => 
-            d.id === selectedDeadline.id ? { ...d, done: !selectedDeadline.done} : d) ?? null);
-
-          setSelectedDeadline(null);
+            <div
+              className="rounded-full px-2 py-1 text-xs font-medium"
+              style={{
+                backgroundColor: `${color}30`,
+                color,
+                border: `1px solid ${color}`,
+                textDecoration: deadline.done ? "line-through" : "none",
+              }}
+            >
+              {info.event.title}
+            </div>
+          );
         }}
-        onDelete={async () => {
-          if (!selectedDeadline.id) return;
-          await deleteDeadline(selectedDeadline.id);
-          setDeadlines((current) => current?.filter((d) => d.id !== selectedDeadline.id) ?? null);
-          setSelectedDeadline(null);
-        }}
-        onSave={async (changes) => {
-          if (!selectedDeadline?.id) return;
-          await updateDeadline(selectedDeadline.id, changes);
-          setDeadlines((current) => current?.map((d) => d.id === selectedDeadline.id ? { ...d, ...changes } : d) ?? null);
-          setSelectedDeadline(null);
-        }}
+        headerToolbar={{ left: "prev,next", center: "title", right: "" }}
       />
-    )}
+      {selectedDeadline?.id && (
+        <DeadlineModal
+          // A fresh popup for each deadline, so its edits start from that deadline
+          key={selectedDeadline.id}
+          deadline={selectedDeadline}
+          onClose={() => setSelectedDeadline(null)}
+          // Stays open after marking done, so unsaved edits in the popup aren't lost
+          onDone={async () => {
+            const done = !selectedDeadline.done;
+            await setDone(selectedDeadline.id!, done);
+            replaceDeadline({ ...selectedDeadline, done });
+          }}
+          onDelete={async () => {
+            await deleteDeadline(selectedDeadline.id!);
+            setDeadlines((current) => current?.filter((d) => d.id !== selectedDeadline.id) ?? null);
+            setSelectedDeadline(null);
+          }}
+          onSave={async (changes) => {
+            await updateDeadline(selectedDeadline.id!, changes);
+            replaceDeadline({ ...selectedDeadline, ...changes });
+            setSelectedDeadline(null);
+          }}
+        />
+      )}
     </main>
   );
 }
