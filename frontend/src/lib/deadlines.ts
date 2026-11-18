@@ -15,13 +15,18 @@ async function currentUserId(): Promise<string> {
   return id;
 }
 
-// Add deadlines (e.g. the ones confirmed in the review popup) to the user's saved list
+// Add deadlines (e.g. the ones confirmed in the review popup) to the user's saved list.
+// Deadlines the user already has (same course, title and date) are skipped, so uploading
+// the same syllabus twice doesn't create duplicates (#64).
 export async function saveDeadlines(deadlines: Deadline[]): Promise<void> {
   if (deadlines.length === 0) return;
   const user_id = await currentUserId();
   // Every row needs user_id, or the insert policy rejects it
   const rows = deadlines.map((d) => ({ ...d, weight: d.weight ?? null, user_id }));
-  const { error } = await supabase.from("deadlines").insert(rows);
+  // Matches the unique constraint in supabase/migrations/20261118000000_unique_deadlines.sql
+  const { error } = await supabase
+    .from("deadlines")
+    .upsert(rows, { onConflict: "user_id,course,title,date", ignoreDuplicates: true });
   if (error) throw new Error(`Couldn't save deadlines: ${error.message}`);
 }
 
