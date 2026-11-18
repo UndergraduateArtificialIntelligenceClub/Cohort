@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import type { Category, Deadline } from "../types";
+import { CATEGORIES, type Category, type Deadline } from "../types";
 
 // Review popup shown on the upload page after parsing: issue #29
 // Walks through each parsed deadline with its source_text so the user can edit, delete or confirm it.
@@ -8,8 +8,6 @@ type Props = {
   pending: Deadline[];
   onDone: (confirmed: Deadline[]) => void;
 };
-
-const CATEGORIES: Category[] = ["assignment", "lab", "quiz", "midterm", "final", "other"];
 
 function ReviewPopup({ pending, onDone }: Props) {
   const id = useId();
