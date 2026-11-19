@@ -9,3 +9,14 @@
 .custom-event .fc-event-main {
   padding: 0 !important;
 }
+
+/* Login demo (components/LoginDemo.tsx): a deadline mark pops onto the calendar */
+@keyframes login-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.15);
+  }
+}
