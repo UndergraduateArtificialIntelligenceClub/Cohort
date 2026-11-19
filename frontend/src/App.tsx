@@ -3,8 +3,10 @@ import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
+import StudyBuddyBadge from "./components/StudyBuddyBadge";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
+import StudyBuddy from "./pages/StudyBuddy";
 import Upload from "./pages/Upload";
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
@@ -13,6 +15,7 @@ import Upload from "./pages/Upload";
 const links = [
   { to: "/", label: "Calendar" },
   { to: "/upload", label: "Upload" },
+  { to: "/study-buddy", label: "Study buddy" },
 ];
 
 function App() {
@@ -58,6 +61,8 @@ function App() {
             className={({ isActive }) => (isActive ? "font-semibold text-blue-600" : "text-gray-600")}
           >
             {link.label}
+            {/* Unread study buddy chats (#67) */}
+            {link.to === "/study-buddy" && <StudyBuddyBadge />}
           </NavLink>
         ))}
         {session && (
@@ -77,6 +82,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Calendar />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/study-buddy" element={<StudyBuddy />} />
       </Routes>
     </BrowserRouter>
   );

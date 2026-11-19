@@ -27,7 +27,7 @@ export type MistakeReport = {
 const MAX_RESULTS = 8;
 
 // Today as YYYY-MM-DD in the user's own timezone (toISOString would use UTC and flip a day early in the evening)
-function todayISO(): string {
+export function todayISO(): string {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
