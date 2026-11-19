@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import ReviewPopup from "../components/ReviewPopup";
+import SharedLibrary from "../components/SharedLibrary";
 import { API } from "../lib/config";
 import { saveDeadlines } from "../lib/deadlines";
+import { markUsed, shareDeadlines, type SharedSyllabus } from "../lib/library";
 import type { Deadline, ParseResponse } from "../types";
 import { authHeaders } from "../lib/supabase";
 
@@ -16,6 +18,11 @@ function Upload() {
   const [saving, setSaving] = useState(false);
   // Confirmed deadlines that failed to save, kept so the user can retry instead of losing them
   const [unsaved, setUnsaved] = useState<Deadline[] | null>(null);
+  // Where the deadlines under review came from: a classmate's shared syllabus (its id), or null for your own upload
+  const [fromShared, setFromShared] = useState<string | null>(null);
+  const [instructor, setInstructor] = useState<string | null>(null);
+  // Share your own uploads to the course library (#66)
+  const [share, setShare] = useState(true);
   const navigate = useNavigate();
 
   // Save what the user confirmed in the review popup, then show it on the calendar
@@ -26,6 +33,13 @@ function Upload() {
     try {
       await saveDeadlines(confirmed);
       setUnsaved(null);
+      // The library is a bonus: if it fails, the user's own deadlines are already saved, so carry on
+      try {
+        if (fromShared) await markUsed(fromShared);
+        else if (share) await shareDeadlines(confirmed, instructor);
+      } catch (e) {
+        console.error(e);
+      }
       navigate("/");
     } catch (e) {
       setUnsaved(confirmed);
@@ -80,6 +94,8 @@ function Upload() {
         data = await res.json();
       }
 
+      setFromShared(null);
+      setInstructor(data.instructor);
       setPending(data.deadlines);
     } catch (e) {
       if (e instanceof TypeError) {
@@ -97,6 +113,15 @@ function Upload() {
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-4 p-8">
       <h1 className="text-2xl font-bold">Upload</h1>
+      <SharedLibrary
+        disabled={loading || saving}
+        onUse={(s: SharedSyllabus) => {
+          setError("");
+          setFromShared(s.id);
+          setInstructor(s.instructor);
+          setPending(s.deadlines);
+        }}
+      />
       <textarea
         value = {text}
         onChange={(e) => setText(e.target.value)}
@@ -115,6 +140,10 @@ function Upload() {
           className = "hidden"
           onChange = {(e) => pickFile(e.target.files?.[0])}
           />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-600">
+        <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
+        Share the deadlines I confirm with classmates in the course library (your name and email are never shown)
       </label>
       <button
         onClick={handleSubmit}
