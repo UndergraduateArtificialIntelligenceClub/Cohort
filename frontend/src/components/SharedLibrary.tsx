@@ -136,7 +136,8 @@ function SharedLibrary({ disabled, onUse }: Props) {
                     {s.instructor && <span className="font-normal text-gray-600"> · {s.instructor}</span>}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {s.deadlines.length} deadlines · used by {s.use_count}{" "}
+                    {s.deadlines.length} upcoming {s.deadlines.length === 1 ? "deadline" : "deadlines"} · used by{" "}
+                    {s.use_count}{" "}
                     {s.use_count === 1 ? "classmate" : "classmates"} · updated {ago(s.updated_at)}
                     {mine && " · shared by you"}
                   </p>

@@ -24,9 +24,15 @@ export type MistakeReport = {
   created_at: string;
 };
 
-// Older than this is probably last term's syllabus, so it's left out of search
-const FRESH_DAYS = 150;
 const MAX_RESULTS = 8;
+
+// Today as YYYY-MM-DD in the user's own timezone (toISOString would use UTC and flip a day early in the evening)
+function todayISO(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 // Anyone can write any JSON into a shared row, so only keep entries that look like real deadlines
 function cleanDeadlines(raw: unknown, course: string): Deadline[] {
@@ -52,12 +58,14 @@ function cleanDeadlines(raw: unknown, course: string): Deadline[] {
 
 // Search by course code ("cmput174" finds "CMPUT 174") or instructor name, most used first.
 // An empty search lists the most used courses.
+// Only syllabi with a deadline today or later, so last term's courses drop out once their final deadline passes.
 export async function searchLibrary(query: string): Promise<SharedSyllabus[]> {
-  const since = new Date(Date.now() - FRESH_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const today = todayISO();
   let request = supabase
     .from("shared_syllabi")
     .select("id, course, instructor, deadlines, uploaded_by, use_count, updated_at")
-    .gte("updated_at", since)
+    // last_deadline is kept up to date by a trigger (supabase/migrations/20261118130000_shared_syllabi_last_deadline.sql)
+    .gte("last_deadline", today)
     .order("use_count", { ascending: false })
     .order("updated_at", { ascending: false })
     .limit(MAX_RESULTS);
@@ -71,8 +79,13 @@ export async function searchLibrary(query: string): Promise<SharedSyllabus[]> {
 
   const { data, error } = await request;
   if (error) throw new Error(`Couldn't search the course library: ${error.message}`);
+  // Only upcoming deadlines, so "Use" doesn't bring in ones that already passed.
+  // YYYY-MM-DD strings compare correctly as text.
   return data
-    .map((row) => ({ ...row, deadlines: cleanDeadlines(row.deadlines, row.course) }))
+    .map((row) => ({
+      ...row,
+      deadlines: cleanDeadlines(row.deadlines, row.course).filter((d) => d.date >= today),
+    }))
     .filter((s) => s.deadlines.length > 0);
 }
 
