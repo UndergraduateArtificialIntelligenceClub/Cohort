@@ -5,6 +5,7 @@ import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
 import { IconLogout, Logo } from "./components/Icons";
+import { InstallButton, IosInstallTip } from "./components/InstallPrompt";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import StudyBuddy from "./pages/StudyBuddy";
@@ -73,6 +74,7 @@ function App() {
               <span className="nav-email" title={session.user.email}>
                 {session.user.email}
               </span>
+              <InstallButton />
               {/* "local" logs out this browser even if the network request fails */}
               <button
                 type="button"
@@ -91,6 +93,7 @@ function App() {
         <Route path="/upload" element={<Upload />} />
         <Route path="/study-buddy" element={<StudyBuddy />} />
       </Routes>
+      <IosInstallTip />
     </BrowserRouter>
   );
 }

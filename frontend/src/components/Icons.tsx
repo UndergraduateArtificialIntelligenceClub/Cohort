@@ -81,6 +81,21 @@ export const IconUpload = (p: IconProps) => (
   </Icon>
 );
 
+export const IconDownload = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5M12 15V3" />
+  </Icon>
+);
+
+// iOS Safari's Share button (square with an arrow out the top)
+export const IconShare = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <path d="m16 6-4-4-4 4M12 2v13" />
+  </Icon>
+);
+
 export const IconLogout = (p: IconProps) => (
   <Icon {...p}>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
