@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
+import { IconLogout, Logo } from "./components/Icons";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import StudyBuddy from "./pages/StudyBuddy";
@@ -37,9 +38,9 @@ function App() {
   // No Supabase keys in frontend/.env: in development, skip login so teammates can still work on other pages.
   // On the live site, show an error instead of letting anyone in.
   if (!supabaseConfigured && !import.meta.env.DEV) {
-    return <p className="p-8 text-center text-red-600">Supabase isn't set up for this site. Ask the project lead.</p>;
+    return <p className="error-text p-8 text-center">Supabase isn't set up for this site. Ask the project lead.</p>;
   }
-  if (checking) return <p className="p-8 text-center text-gray-600">Loading…</p>;
+  if (checking) return <p className="muted p-8 text-center">Loading…</p>;
 
   // Logged out: show only the login page, no nav. Logged in: show the app.
   if (supabaseConfigured && !session) return <Login />;
@@ -47,38 +48,44 @@ function App() {
   return (
     <BrowserRouter>
       {!supabaseConfigured && (
-        <p className="bg-yellow-100 px-6 py-2 text-sm text-yellow-800">
+        <p className="border-b border-border bg-subtle px-6 py-2 text-xs text-ink-2">
           Supabase isn't set up, so login is off. Add the keys to frontend/.env (see the README) to use login.
         </p>
       )}
-      <nav className="flex items-center gap-4 border-b px-6 py-3">
-        <span className="text-xl font-bold text-blue-600">{APP_NAME}</span>
-        {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            end
-            className={({ isActive }) => (isActive ? "font-semibold text-blue-600" : "text-gray-600")}
-          >
-            {link.label}
-            {/* Unread study buddy chats (#67) */}
-            {link.to === "/study-buddy" && <StudyBuddyBadge />}
+      {/* Sticky frosted bar: brand, page tabs (NavLink adds "active" to the current one), then the account */}
+      <header className="nav-wrap">
+        <nav className="nav">
+          <NavLink to="/" className="brand">
+            <Logo />
+            {APP_NAME}
           </NavLink>
-        ))}
-        {session && (
-          <div className="ml-auto flex items-center gap-4 text-sm">
-            <span className="text-gray-600">{session.user.email}</span>
-            {/* "local" logs out this browser even if the network request fails */}
-            <button
-              type="button"
-              onClick={() => supabase.auth.signOut({ scope: "local" })}
-              className="text-gray-600 hover:text-blue-600"
-            >
-              Log out
-            </button>
+          <div className="tabs">
+            {links.map((link) => (
+              <NavLink key={link.to} to={link.to} end className="tab">
+                {link.label}
+                {/* Unread study buddy chats (#67) */}
+                {link.to === "/study-buddy" && <StudyBuddyBadge />}
+              </NavLink>
+            ))}
           </div>
-        )}
-      </nav>
+          {session && (
+            <div className="nav-right">
+              <span className="nav-email" title={session.user.email}>
+                {session.user.email}
+              </span>
+              {/* "local" logs out this browser even if the network request fails */}
+              <button
+                type="button"
+                onClick={() => supabase.auth.signOut({ scope: "local" })}
+                className="btn btn-quiet btn-sm"
+              >
+                <IconLogout />
+                Log out
+              </button>
+            </div>
+          )}
+        </nav>
+      </header>
       <Routes>
         <Route path="/" element={<Calendar />} />
         <Route path="/upload" element={<Upload />} />

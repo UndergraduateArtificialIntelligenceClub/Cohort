@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { deleteDeadline, loadDeadlines, setDone, updateDeadline } from "../lib/deadlines";
 import type { Deadline } from "../types";
@@ -12,7 +12,10 @@ import "@fullcalendar/react/themes/monarch/theme.css";
 import "@fullcalendar/react/themes/monarch/palettes/purple.css";
 
 // Each course gets the next color in this list, so the same course is always the same color
-const palette = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b", "#06b6d4", "#ec4899", "#8b5cf6", "#84cc16"];
+const palette = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+
+// Lets a course color be passed to CSS as --c (used by .dot and .ev-pill in index.css)
+const courseVar = (color: string) => ({ "--c": color }) as CSSProperties;
 
 function colorCourses(deadlines: Deadline[]): Record<string, string> {
   const courses = [...new Set(deadlines.map((d) => d.course))].sort();
@@ -48,56 +51,55 @@ function Calendar() {
   }));
 
   return (
-    <main className="flex flex-col gap-4 p-6">
-      <h1 className="text-2xl font-bold">Calendar</h1>
-      {error && <p className="text-red-600">{error}</p>}
-      {!deadlines && !error && <p className="text-gray-600">Loading deadlines...</p>}
+    <main className="page">
+      <div className="page-head">
+        <h1 className="page-title">Calendar</h1>
+        {/* Which color is which course */}
+        {Object.keys(courseColors).length > 0 && (
+          <ul className="chips" aria-label="Courses">
+            {Object.entries(courseColors).map(([course, color]) => (
+              <li key={course} className="chip" style={courseVar(color)}>
+                <i className="dot" />
+                {course}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {error && <p className="notice notice-error mb-4">{error}</p>}
+      {!deadlines && !error && <p className="muted mb-4">Loading deadlines...</p>}
       {deadlines?.length === 0 && (
-        <p className="text-gray-600">
-          No deadlines yet.{" "}
-          <Link to="/upload" className="text-blue-600 underline">
+        <div className="empty mb-4">
+          <h2 className="modal-title">No deadlines yet</h2>
+          <p className="muted">Upload a syllabus and its deadlines show up here after you check them.</p>
+          <Link to="/upload" className="btn btn-primary mt-5">
             Upload a syllabus
-          </Link>{" "}
-          to add some.
-        </p>
+          </Link>
+        </div>
       )}
-      {Object.keys(courseColors).length > 0 && (
-        <ul className="flex flex-wrap gap-4 text-sm">
-          {Object.entries(courseColors).map(([course, color]) => (
-            <li key={course} className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full" style={{ background: color }} />
-              {course}
-            </li>
-          ))}
-        </ul>
-      )}
-      <FullCalendar
-        plugins={[themePlugin, dayGridPlugin]}
-        initialView="dayGridMonth"
-        events={events}
-        fixedWeekCount={false}
-        height="auto"
-        eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
-        eventClass={() => "custom-event"}
-        eventContent={(info) => {
-          const deadline: Deadline = info.event.extendedProps.deadline;
-          const color = deadline.done ? "#9ca3af" : courseColors[deadline.course];
-          return (
-            <div
-              className="rounded-full px-2 py-1 text-xs font-medium"
-              style={{
-                backgroundColor: `${color}30`,
-                color,
-                border: `1px solid ${color}`,
-                textDecoration: deadline.done ? "line-through" : "none",
-              }}
-            >
-              {info.event.title}
-            </div>
-          );
-        }}
-        headerToolbar={{ left: "prev,next", center: "title", right: "" }}
-      />
+      <section className="panel cal-panel" aria-label="Month">
+        <FullCalendar
+          plugins={[themePlugin, dayGridPlugin]}
+          initialView="dayGridMonth"
+          events={events}
+          fixedWeekCount={false}
+          height="auto"
+          borderless
+          eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
+          eventClass="cal-event"
+          dayCellClass={(arg) => (arg.isToday ? "cal-today" : undefined)}
+          eventContent={(info) => {
+            const deadline: Deadline = info.event.extendedProps.deadline;
+            // A tinted bar in the course color; done ones are grey and crossed out (.ev-pill in index.css)
+            return (
+              <span className={`ev-pill${deadline.done ? " is-done" : ""}`} style={courseVar(courseColors[deadline.course])}>
+                <span className="ev-text">{info.event.title}</span>
+              </span>
+            );
+          }}
+          headerToolbar={{ start: "title", center: "", end: "prev,next" }}
+        />
+      </section>
       {selectedDeadline?.id && (
         <DeadlineModal
           // A fresh popup for each deadline, so its edits start from that deadline

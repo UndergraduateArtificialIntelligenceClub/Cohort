@@ -35,7 +35,7 @@ function StudyBuddyBadge() {
 
   if (count === 0) return null;
   return (
-    <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-semibold text-white">
+    <span className="count-badge">
       {count}
       <span className="sr-only"> unread</span>
     </span>

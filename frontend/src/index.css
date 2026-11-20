@@ -1,13 +1,139 @@
 @import "tailwindcss";
 
-/* Remove FullCalendar's default event bars so custom event pills from Calendar.tsx do the visual styling instead. */
-.custom-event {
-  background: transparent !important; 
-  border: none !important;
+/* The look is ported from CalendarAI Mini: warm neutrals, one green accent, serif headings.
+   Colors live here once as CSS variables. Use them in Tailwind as text-ink-2, bg-subtle, border-border,
+   text-accent, font-heading and so on, or through the shared classes below (.btn, .input, .panel, ...). */
+
+/* =========================================================
+   Tokens
+   ========================================================= */
+:root {
+  color-scheme: light;
+
+  /* Neutrals */
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --subtle: #f3f2ef;
+  --border: #e7e5e0;
+  --border-strong: #d6d3cc;
+  --border-hover: #bfbab0;
+  --ink: #1c1a17;
+  --ink-hover: #3a3732;
+  --ink-2: #5c574f;
+  --ink-3: #78736a;
+
+  /* The one accent, plus danger */
+  --accent: #1f7a5a;
+  --accent-subtle: #e8f2ed;
+  --danger: #b42318;
+  --danger-subtle: #fdf0ee;
+
+  --text-sm: 12px;
+  --text-md: 14px;
+  --text-lg: 18px;
+  --text-xl: 28px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 6px;
+  --control: 32px;
+  --control-sm: 28px;
+  --shadow-sm: 0 1px 2px rgba(28, 26, 23, 0.05);
+  --shadow-float: 0 1px 2px rgba(28, 26, 23, 0.06), 0 8px 24px rgba(28, 26, 23, 0.1);
+  --glass-blur: blur(18px) saturate(180%);
+
+  --duration: 120ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 
-.custom-event .fc-event-main {
-  padding: 0 !important;
+/* Fonts are loaded in index.html. Defined here so Tailwind also makes font-heading, font-body and font-mono. */
+@theme {
+  --font-heading: "Source Serif 4", Georgia, serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+}
+
+/* =========================================================
+   Base
+   ========================================================= */
+@layer base {
+  body {
+    min-height: 100svh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--accent-subtle);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 100px var(--surface) inset;
+    -webkit-text-fill-color: var(--ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 /* Login demo (components/LoginDemo.tsx): a deadline mark pops onto the calendar */
@@ -19,4 +145,848 @@
   70% {
     transform: scale(1.15);
   }
+}
+
+/* =========================================================
+   Shared classes. In a layer, so Tailwind utilities on the same element still win.
+   ========================================================= */
+@layer components {
+  /* ---------- Page layout ---------- */
+  .page {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-5) var(--space-7);
+    animation: rise-in 200ms var(--ease);
+  }
+
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+  }
+
+  .page-title {
+    font: 600 var(--text-xl) / 1.2 var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+
+  .page-sub {
+    max-width: 60ch;
+    margin-top: var(--space-2);
+    color: var(--ink-2);
+  }
+
+  .modal-title {
+    font: 600 var(--text-lg) / 1.3 var(--font-heading);
+  }
+
+  .section-title {
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+
+  .muted {
+    color: var(--ink-2);
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .link {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--control);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: var(--text-md);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: var(--border-hover);
+    background: var(--subtle);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(0.5px);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    border-color: var(--ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(28, 26, 23, 0.2);
+    color: var(--surface);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    border-color: var(--ink-hover);
+    background: var(--ink-hover);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--surface);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--danger) 88%, black);
+    background: color-mix(in srgb, var(--danger) 88%, black);
+  }
+
+  /* No border or fill until hovered: secondary actions like Cancel or Unmatch */
+  .btn-quiet {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-2);
+  }
+
+  .btn-quiet:hover:not(:disabled) {
+    border-color: transparent;
+  }
+
+  .btn-danger-text {
+    color: var(--danger);
+  }
+
+  .btn-sm {
+    height: var(--control-sm);
+    padding: 0 var(--space-2);
+    font-size: var(--text-sm);
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-sm);
+    height: var(--control-sm);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+
+  .icon-btn:hover {
+    background: var(--subtle);
+    color: var(--ink);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* ---------- Inputs ---------- */
+  .input {
+    width: 100%;
+    height: var(--control);
+    padding: 0 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    color: var(--ink);
+    font-size: var(--text-md);
+    transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+  }
+
+  .input:hover:not(:focus) {
+    border-color: var(--border-hover);
+  }
+
+  textarea.input {
+    height: auto;
+    padding: var(--space-2) 10px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  .input::placeholder {
+    color: var(--ink-3);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .field-label {
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  /* Two-column form grid; .field-wide spans both */
+  .fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .checkbox {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    accent-color: var(--accent);
+  }
+
+  /* ---------- Chips, dots, notices ---------- */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--control-sm);
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+
+  button.chip {
+    cursor: pointer;
+  }
+
+  button.chip:hover {
+    border-color: var(--border-hover);
+  }
+
+  .chip[aria-pressed="true"] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  /* Course color dot. Set --c on it or a parent. */
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--c, var(--ink-3));
+  }
+
+  .notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--subtle);
+    color: var(--ink-2);
+    font-size: var(--text-md);
+  }
+
+  .notice-info {
+    border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    background: var(--accent-subtle);
+    color: var(--ink);
+  }
+
+  .notice-error {
+    border-color: color-mix(in srgb, var(--danger) 25%, transparent);
+    background: var(--danger-subtle);
+    color: var(--danger);
+  }
+
+  .error-text {
+    color: var(--danger);
+    font-size: var(--text-md);
+  }
+
+  /* ---------- Lists of rows ---------- */
+  .rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding-block: var(--space-2);
+  }
+
+  .row + .row {
+    border-top: 1px solid var(--border);
+  }
+
+  .row-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .row-title {
+    overflow: hidden;
+    color: var(--ink);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .row-meta {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  /* ---------- Nav ---------- */
+  .nav-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    max-width: 1200px;
+    height: 48px;
+    margin: 0 auto;
+    padding-inline: var(--space-5);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .tabs {
+    display: flex;
+    align-self: stretch;
+    gap: var(--space-4);
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-2);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color var(--duration) var(--ease);
+  }
+
+  .tab:hover {
+    color: var(--ink);
+  }
+
+  .tab.active {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    margin-left: auto;
+  }
+
+  .nav-email {
+    overflow: hidden;
+    color: var(--ink-3);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Red unread count on a nav tab */
+  .count-badge {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--danger);
+    color: var(--surface);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+  }
+
+  /* ---------- Empty state ---------- */
+  .empty {
+    padding: var(--space-7) var(--space-6);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .empty .muted {
+    max-width: 52ch;
+    margin-top: var(--space-2);
+  }
+
+  /* ---------- Modals ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 10vh var(--space-4) var(--space-4);
+    background: rgba(28, 26, 23, 0.28);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    animation: fade-in var(--duration) var(--ease);
+  }
+
+  .modal {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    padding: var(--space-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    animation: rise-in var(--duration) var(--ease);
+  }
+
+  .modal-head {
+    display: flex;
+    min-height: var(--control-sm);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  /* Footer bar of buttons along the bottom edge of a modal */
+  .modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-5) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    background: var(--bg);
+  }
+
+  /* The exact sentence from the syllabus */
+  .quote figcaption {
+    margin-bottom: var(--space-1);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  .quote blockquote {
+    max-height: 160px;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-3);
+    border-left: 2px solid var(--border-strong);
+    background: var(--subtle);
+    color: var(--ink-2);
+    white-space: pre-wrap;
+  }
+
+  .progress {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--subtle);
+  }
+
+  .progress span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 200ms var(--ease);
+  }
+
+  /* ---------- Upload page ---------- */
+  .add-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: var(--space-4);
+  }
+
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: 220px;
+    padding: var(--space-5);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--bg);
+    cursor: pointer;
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+
+  .dropzone:hover {
+    border-color: var(--border-hover);
+    background: var(--surface);
+  }
+
+  .dropzone:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .icon-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control);
+    height: var(--control);
+    margin-bottom: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    color: var(--ink-2);
+  }
+
+  /* ---------- Study buddy chat ---------- */
+  .bubble {
+    align-self: flex-start;
+    max-width: 75%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    background: var(--subtle);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .bubble.mine {
+    align-self: flex-end;
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  .bubble time {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--text-sm);
+    opacity: 0.6;
+  }
+}
+
+/* =========================================================
+   Narrow screens
+   ========================================================= */
+@media (max-width: 720px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  /* Tabs move to their own scrolling row under the brand */
+  .nav {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 0;
+    padding: var(--space-2) var(--space-4) 0;
+  }
+
+  .tabs {
+    order: 3;
+    width: 100%;
+    height: 40px;
+    overflow-x: auto;
+  }
+
+  .nav-email {
+    display: none;
+  }
+
+  .add-grid,
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overlay {
+    padding-top: var(--space-4);
+  }
+
+  .modal {
+    padding: var(--space-4);
+  }
+
+  .modal-actions {
+    margin: var(--space-4) calc(-1 * var(--space-4)) calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+/* =========================================================
+   Calendar (FullCalendar "monarch" theme mapped onto the tokens).
+   Not in a layer: FullCalendar's own CSS isn't either, and unlayered CSS always beats layered CSS.
+   html:root beats the theme palette's plain :root no matter which loads first.
+   ========================================================= */
+html:root {
+  --fc-monarch-primary: var(--ink);
+  --fc-monarch-primary-foreground: var(--surface);
+  --fc-monarch-primary-over: var(--ink-hover);
+  --fc-monarch-primary-down: var(--ink-hover);
+
+  --fc-monarch-secondary: var(--surface);
+  --fc-monarch-secondary-foreground: var(--ink);
+  --fc-monarch-secondary-over: var(--subtle);
+  --fc-monarch-secondary-down: var(--border);
+
+  --fc-monarch-tertiary: var(--accent);
+  --fc-monarch-tertiary-foreground: var(--surface);
+  --fc-monarch-tertiary-over: var(--accent);
+  --fc-monarch-tertiary-down: var(--accent);
+
+  --fc-monarch-event: var(--ink-3);
+  --fc-monarch-event-contrast: var(--surface);
+  --fc-monarch-highlight: var(--accent-subtle);
+  --fc-monarch-now: var(--accent);
+
+  --fc-monarch-selected: var(--subtle);
+  --fc-monarch-selected-foreground: var(--ink);
+  --fc-monarch-selected-over: var(--border);
+  --fc-monarch-selected-down: var(--border);
+  --fc-monarch-outline: var(--accent);
+
+  --fc-monarch-popover: var(--surface);
+  --fc-monarch-popover-foreground: var(--ink);
+
+  --fc-monarch-background: transparent;
+  --fc-monarch-faint: var(--bg);
+  --fc-monarch-muted: var(--subtle);
+  --fc-monarch-strong: var(--border);
+  --fc-monarch-stronger: var(--border-strong);
+  --fc-monarch-strongest: var(--ink-3);
+
+  --fc-monarch-foreground: var(--ink);
+  --fc-monarch-faint-foreground: var(--ink-3);
+  --fc-monarch-muted-foreground: var(--ink-2);
+
+  --fc-monarch-border: var(--border);
+  --fc-monarch-strong-border: var(--border-strong);
+}
+
+.cal-panel {
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+/* Keep the grid on the app's type scale and radius (the theme uses its own) */
+.cal-panel * {
+  font-size: var(--text-sm);
+}
+.cal-panel [role="heading"] {
+  font: 600 var(--text-lg) / 1.3 var(--font-heading);
+}
+.cal-panel button {
+  min-height: 0;
+  height: var(--control);
+  padding-block: 0;
+  border-radius: var(--radius);
+  font-size: var(--text-md);
+}
+.cal-panel a {
+  border-radius: var(--radius);
+}
+
+/* Toolbar: title on the left, controls on the right, no extra inset */
+.cal-panel > div > div:first-child {
+  padding: 0 0 var(--space-3);
+}
+.cal-panel button:not(:disabled):hover {
+  background: var(--subtle);
+}
+
+/* Weekday headers and day numbers sit top-left, like a paper planner.
+   The skeleton centers header cells with !important, so this has to match it. */
+.cal-panel [role="columnheader"],
+.cal-panel [role="columnheader"] * {
+  justify-content: flex-start;
+  align-items: flex-start !important;
+  text-align: left;
+  text-transform: none;
+}
+.cal-panel [role="columnheader"] > div {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  color: var(--ink-3);
+  font-weight: 500;
+}
+/* Day cell: the first child holds a screen-reader date and the visible number (aria-hidden) */
+.cal-panel [role="cell"] > div:first-child {
+  justify-content: flex-start;
+  padding: 6px var(--space-2) 2px;
+}
+.cal-panel [role="cell"] > div:first-child > [aria-hidden="true"] {
+  height: 22px;
+  color: var(--ink-2);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 22px;
+}
+
+/* Events: a tinted bar in the course color (Calendar.tsx sets --c) */
+.cal-event {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.ev-pill {
+  --c: var(--ink-3);
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 1px 6px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--c) 12%, var(--surface));
+  box-shadow: inset 2px 0 0 var(--c);
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.ev-pill:hover {
+  background: color-mix(in srgb, var(--c) 20%, var(--surface));
+}
+.ev-pill.is-done {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  background: var(--subtle);
+}
+.ev-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Today */
+.cal-today {
+  background: color-mix(in srgb, var(--accent-subtle) 50%, transparent);
+}
+.cal-panel .cal-today > div:first-child > [aria-hidden="true"] {
+  margin-left: -2px;
+  padding: 0 6px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+/* Phones: day cells are too narrow for titles, so events become tappable color bars */
+@media (max-width: 600px) {
+  .cal-panel {
+    padding: var(--space-2);
+  }
+  .ev-pill {
+    height: 6px;
+    padding: 0;
+    background: var(--c);
+    box-shadow: none;
+  }
+  .ev-text {
+    display: none;
+  }
+}
+
+/* "+N more" popover (FullCalendar renders it straight into <body>) */
+body > [role="dialog"] {
+  border-radius: var(--radius);
+  border-color: var(--border);
+  box-shadow: var(--shadow-float);
 }

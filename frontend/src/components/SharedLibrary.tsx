@@ -9,6 +9,7 @@ import {
   type MistakeReport,
   type SharedSyllabus,
 } from "../lib/library";
+import { IconSearch } from "./Icons";
 
 // Course library search on the upload page: issue #66
 // Find a syllabus a classmate already parsed and review its deadlines instead of uploading your own.
@@ -94,48 +95,51 @@ function SharedLibrary({ disabled, onUse }: Props) {
   if (results.length === 0 && !query && !error) return null;
 
   return (
-    <section aria-labelledby="library-heading" className="flex flex-col gap-3 rounded-lg border p-4">
+    <section aria-labelledby="library-heading" className="panel mb-4 flex flex-col gap-3 p-4">
       <div>
-        <h2 id="library-heading" className="text-lg font-semibold">
+        <h2 id="library-heading" className="section-title">
           Find your course
         </h2>
-        <p className="text-sm text-gray-600">
+        <p className="muted">
           If a classmate already added your course, use their deadlines and review them before saving.
         </p>
       </div>
 
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Course or instructor, e.g. CMPUT 174"
-        aria-label="Search the course library"
-        className="w-full rounded border p-2"
-      />
+      <div className="relative">
+        <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Course or instructor, e.g. CMPUT 174"
+          aria-label="Search the course library"
+          className="input pl-8"
+        />
+      </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="notice notice-error">{error}</p>}
 
       {results.length === 0 && query.trim() && !error && (
-        <p className="text-sm text-gray-600">
+        <p className="muted">
           No one has shared “{query.trim()}” yet. Upload it below to be the first.
         </p>
       )}
 
-      <ul className="flex flex-col divide-y">
+      <ul className="rows">
         {results.map((s) => {
           const mine = s.uploaded_by === userId;
           const myReport = reports.find((r) => r.syllabus_id === s.id && r.reported_by === userId);
           // Reports from classmates on your own entry
           const onMine = mine ? reports.filter((r) => r.syllabus_id === s.id) : [];
           return (
-            <li key={s.id} className="flex flex-col gap-2 py-3">
+            <li key={s.id} className="row flex-col items-stretch">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">
+                <div className="row-text">
+                  <p className="row-title">
                     {s.course}
-                    {s.instructor && <span className="font-normal text-gray-600"> · {s.instructor}</span>}
+                    {s.instructor && <span className="font-normal text-ink-2"> · {s.instructor}</span>}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="row-meta">
                     {s.deadlines.length} upcoming {s.deadlines.length === 1 ? "deadline" : "deadlines"} · used by{" "}
                     {s.use_count}{" "}
                     {s.use_count === 1 ? "classmate" : "classmates"} · updated {ago(s.updated_at)}
@@ -147,7 +151,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
                     type="button"
                     disabled={busy}
                     onClick={() => act(() => stopSharing(s.id))}
-                    className="rounded px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    className="btn btn-quiet btn-sm btn-danger-text"
                   >
                     Stop sharing
                   </button>
@@ -159,7 +163,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
                       setReporting(reporting === s.id ? null : s.id);
                       setReportText(myReport?.message ?? "");
                     }}
-                    className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                    className="btn btn-quiet btn-sm"
                   >
                     {myReport ? "Edit report" : "Report a mistake"}
                   </button>
@@ -168,7 +172,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
                   type="button"
                   disabled={disabled || busy}
                   onClick={() => onUse(s)}
-                  className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+                  className="btn btn-primary btn-sm"
                 >
                   Use
                 </button>
@@ -182,21 +186,23 @@ function SharedLibrary({ disabled, onUse }: Props) {
                     sendReport(s.id);
                   }}
                 >
-                  <label className="flex flex-col gap-1 text-sm">
-                    What's wrong? The person who shared it will see this, but not your name.
+                  <label className="field">
+                    <span className="field-label">
+                      What's wrong? The person who shared it will see this, but not your name.
+                    </span>
                     <textarea
                       value={reportText}
                       onChange={(e) => setReportText(e.target.value)}
                       maxLength={1000}
                       placeholder="e.g. Midterm is Oct 22, not Oct 15"
-                      className="h-20 rounded border p-2"
+                      className="input h-20"
                     />
                   </label>
                   <div className="flex gap-2">
                     <button
                       type="submit"
                       disabled={busy || !reportText.trim()}
-                      className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+                      className="btn btn-primary btn-sm"
                     >
                       Send report
                     </button>
@@ -208,7 +214,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
                           await dismissReport(myReport.id);
                           setReporting(null);
                         })}
-                        className="rounded px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        className="btn btn-quiet btn-sm btn-danger-text"
                       >
                         Withdraw report
                       </button>
@@ -216,7 +222,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
                     <button
                       type="button"
                       onClick={() => setReporting(null)}
-                      className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                      className="btn btn-quiet btn-sm"
                     >
                       Cancel
                     </button>
@@ -225,7 +231,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
               )}
 
               {onMine.length > 0 && (
-                <div className="rounded border-l-4 border-amber-500 bg-amber-50 p-3 text-sm">
+                <div className="notice flex-col">
                   <p className="font-medium">
                     Classmates reported {onMine.length === 1 ? "a mistake" : `${onMine.length} mistakes`}. Fix it by
                     uploading the syllabus again, then dismiss.
@@ -233,12 +239,12 @@ function SharedLibrary({ disabled, onUse }: Props) {
                   <ul className="mt-2 flex flex-col gap-2">
                     {onMine.map((r) => (
                       <li key={r.id} className="flex items-start gap-2">
-                        <span className="flex-1">“{r.message}” <span className="text-gray-500">({ago(r.created_at)})</span></span>
+                        <span className="flex-1">“{r.message}” <span className="text-ink-3">({ago(r.created_at)})</span></span>
                         <button
                           type="button"
                           disabled={busy}
                           onClick={() => act(() => dismissReport(r.id))}
-                          className="text-gray-600 hover:text-blue-600 disabled:opacity-50"
+                          className="btn btn-quiet btn-sm"
                         >
                           Dismiss
                         </button>

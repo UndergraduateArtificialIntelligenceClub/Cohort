@@ -1,4 +1,5 @@
-import { useEffect, useId, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
+import { GoogleIcon, IconAlert, IconCheck, IconExternal, IconEye, IconEyeOff, IconInfo, Logo } from "../components/Icons";
 import LoginDemo from "../components/LoginDemo";
 import { APP_NAME } from "../lib/config";
 import { supabase } from "../lib/supabase";
@@ -8,6 +9,7 @@ import { supabase } from "../lib/supabase";
 // The real domain check is the Supabase signup hook in supabase/migrations/. The check here just gives a faster message.
 // The same hook also blocks new Google accounts that aren't @ualberta.ca.
 // Look ported from CalendarAI Mini's login page: intro and demo on the left, sign-in card on the right.
+// Colors and fonts come from the shared tokens in index.css.
 const SCHOOL_DOMAIN = "ualberta.ca";
 // Sign-up is UAlberta-only, so visitors (recruiters, mostly) get a hosted walkthrough instead
 const TOUR_URL = "https://cohort-landing-pg.vercel.app/";
@@ -31,27 +33,6 @@ const FACTS = [
   "Use deadlines a classmate already shared",
   "Find a study buddy in the same course",
 ];
-
-// Mini's colors and fonts, only for this page. Fonts are loaded in index.html.
-const tokens = {
-  "--bg": "#faf9f7",
-  "--surface": "#ffffff",
-  "--subtle": "#f3f2ef",
-  "--border": "#e7e5e0",
-  "--border-strong": "#d6d3cc",
-  "--border-hover": "#bfbab0",
-  "--ink": "#1c1a17",
-  "--ink-hover": "#3a3732",
-  "--ink-2": "#5c574f",
-  "--ink-3": "#78736a",
-  "--accent": "#1f7a5a",
-  "--accent-subtle": "#e8f2ed",
-  "--danger": "#b42318",
-  "--danger-subtle": "#fdf0ee",
-  "--font-heading": '"Source Serif 4", Georgia, serif',
-  "--font-body": '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif',
-  "--font-mono": "ui-monospace, SFMono-Regular, Menlo, monospace",
-} as CSSProperties;
 
 const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent)";
 const btn = `inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 font-medium transition-colors active:enabled:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`;
@@ -149,10 +130,7 @@ function Login() {
   }
 
   return (
-    <div
-      style={tokens}
-      className="min-h-svh bg-(--bg) font-(family-name:--font-body) text-sm leading-normal text-(--ink) antialiased"
-    >
+    <div className="min-h-svh bg-bg">
       <main className="mx-auto grid min-h-svh max-w-[960px] grid-cols-1 content-start gap-8 px-4 py-8 md:px-6 md:py-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:content-center lg:items-center lg:gap-12">
         {/* On one column, display: contents lets the sign-in card sit between the intro and the demo */}
         <section className="max-lg:contents">
@@ -171,9 +149,7 @@ function Login() {
           <ul className="mt-6 grid grid-cols-1 gap-x-6 text-xs text-(--ink-2) md:grid-cols-2 max-lg:order-2 max-lg:mt-0">
             {FACTS.map((fact) => (
               <li key={fact} className="flex min-w-0 items-center gap-2 border-t border-(--border) py-2">
-                <Icon className="text-(--accent)" size={14}>
-                  <path d="M20 6 9 17l-5-5" />
-                </Icon>
+                <IconCheck className="text-accent" size={14} />
                 {fact}
               </li>
             ))}
@@ -239,19 +215,7 @@ function Login() {
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   className={`absolute top-1/2 right-0.5 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-(--ink-3) hover:text-(--ink) ${focusRing}`}
                 >
-                  {showPassword ? (
-                    <Icon>
-                      <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
-                      <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
-                      <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
-                      <path d="m2 2 20 20" />
-                    </Icon>
-                  ) : (
-                    <Icon>
-                      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
-                      <circle cx="12" cy="12" r="3" />
-                    </Icon>
-                  )}
+                  {showPassword ? <IconEyeOff /> : <IconEye />}
                 </button>
               </div>
             </div>
@@ -265,19 +229,7 @@ function Login() {
                     : "border-(--border) bg-(--subtle) text-(--ink-2)"
                 }`}
               >
-                <Icon className="mt-0.5">
-                  {message.kind === "error" ? (
-                    <>
-                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-                      <path d="M12 9v4M12 17h.01" />
-                    </>
-                  ) : (
-                    <>
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 16v-4M12 8h.01" />
-                    </>
-                  )}
-                </Icon>
+                {message.kind === "error" ? <IconAlert className="mt-0.5" /> : <IconInfo className="mt-0.5" />}
                 <span>{message.text}</span>
               </p>
             )}
@@ -303,9 +255,7 @@ function Login() {
               className={`inline-flex items-center gap-1 font-medium text-(--accent) no-underline underline-offset-[3px] hover:underline ${focusRing}`}
             >
               Take a tour of the app
-              <Icon size={13}>
-                <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              </Icon>
+              <IconExternal size={13} />
             </a>
           </p>
         </section>
@@ -314,63 +264,8 @@ function Login() {
   );
 }
 
-// Line icons drawn like Mini's (Lucide shapes, 1.75 stroke)
-function Icon({ children, size = 16, className = "" }: { children: ReactNode; size?: number; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`flex-none ${className}`}
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
-
 function Spinner() {
   return <span className="inline-block size-3 flex-none animate-spin rounded-full border-[1.5px] border-current border-t-transparent" />;
-}
-
-// Calendar mark with an accent square, from Mini
-function Logo() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <rect x="3" y="6" width="26" height="23" rx="5" fill="var(--ink)" />
-      <path d="M10 3v6M22 3v6" stroke="var(--ink)" strokeWidth="2.5" strokeLinecap="round" />
-      <rect x="18" y="19" width="6" height="6" rx="1.5" fill="var(--accent)" />
-    </svg>
-  );
-}
-
-// Google's "G" logo for the sign-in button
-function GoogleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true" className="flex-none">
-      <path
-        fill="#FFC107"
-        d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"
-      />
-      <path
-        fill="#FF3D00"
-        d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
-      />
-      <path
-        fill="#4CAF50"
-        d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"
-      />
-      <path
-        fill="#1976D2"
-        d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"
-      />
-    </svg>
-  );
 }
 
 export default Login;
