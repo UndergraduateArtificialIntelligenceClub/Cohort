@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { CATEGORIES, type Deadline } from "../types";
+import { IconCheck, IconX } from "./Icons";
 
 // Popup for one saved deadline on the calendar: issue #59
 // Edit its fields, mark it done or undone, or delete it.
@@ -80,34 +81,37 @@ function DeadlineModal({ deadline, onClose, onDone, onDelete, onSave }: Props) {
     run(onDelete);
   }
 
-  const inputClass = "w-full rounded border p-2";
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4" onClick={busy ? undefined : onClose}>
+    <div className="overlay" onClick={busy ? undefined : onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${id}-heading`}
-        className="flex max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto rounded-lg bg-white p-6"
+        className="modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id={`${id}-heading`} className="text-xl font-bold">
-          Deadline details
-        </h2>
+        <div className="modal-head">
+          <h2 id={`${id}-heading`} className="modal-title">
+            Deadline details
+          </h2>
+          <button type="button" className="icon-btn" disabled={busy} onClick={onClose} aria-label="Close">
+            <IconX />
+          </button>
+        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="col-span-2 flex flex-col gap-1">
-            Course
-            <input className={inputClass} value={edited.course} onChange={(e) => update("course", e.target.value)} />
+        <div className="fields">
+          <label className="field field-wide">
+            <span className="field-label">Course</span>
+            <input className="input" value={edited.course} onChange={(e) => update("course", e.target.value)} />
           </label>
-          <label className="flex flex-col gap-1">
-            Title
-            <input className={inputClass} value={edited.title} onChange={(e) => update("title", e.target.value)} />
+          <label className="field">
+            <span className="field-label">Title</span>
+            <input className="input" value={edited.title} onChange={(e) => update("title", e.target.value)} />
           </label>
-          <label className="flex flex-col gap-1">
-            Date
+          <label className="field">
+            <span className="field-label">Date</span>
             <input
-              className={inputClass}
+              className="input"
               type="date"
               value={edited.date}
               onChange={(e) => update("date", e.target.value)}
@@ -115,19 +119,15 @@ function DeadlineModal({ deadline, onClose, onDone, onDelete, onSave }: Props) {
           </label>
 
           {/* A fieldset, not a label: clicking a label clicks the first button inside it */}
-          <fieldset className="col-span-2 flex flex-col gap-1">
-            <legend className="mb-1">Category</legend>
-            <div className="flex flex-wrap gap-2">
+          <fieldset className="field field-wide">
+            <legend className="field-label mb-1">Category</legend>
+            <div className="chips">
               {CATEGORIES.map((category) => (
                 <button
                   key={category}
                   type="button"
                   aria-pressed={edited.category === category}
-                  className={`rounded border px-2 py-2 text-sm ${
-                    edited.category === category
-                      ? "bg-black text-white"
-                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                  }`}
+                  className="chip"
                   onClick={() => update("category", category)}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -136,10 +136,10 @@ function DeadlineModal({ deadline, onClose, onDone, onDelete, onSave }: Props) {
             </div>
           </fieldset>
 
-          <label className="col-span-2 flex flex-col gap-1">
-            Weight (%)
+          <label className="field field-wide">
+            <span className="field-label">Weight (%)</span>
             <input
-              className={inputClass}
+              className="input"
               type="number"
               min={0}
               max={100}
@@ -151,48 +151,31 @@ function DeadlineModal({ deadline, onClose, onDone, onDelete, onSave }: Props) {
           </label>
         </div>
 
-        <div>
-          <button type="button" className="text-sm text-gray-600 underline" onClick={() => setShowSource(!showSource)}>
+        <div className="mt-4">
+          <button type="button" className="btn btn-quiet btn-sm -ml-2" onClick={() => setShowSource(!showSource)}>
             {showSource ? "Hide extracted text" : "Show extracted text"}
           </button>
-          {showSource && <p className="mt-2 rounded bg-gray-100 p-3 text-sm">{deadline.source_text}</p>}
+          {showSource && (
+            <figure className="quote mt-2">
+              <figcaption>From the syllabus</figcaption>
+              <blockquote>{deadline.source_text}</blockquote>
+            </figure>
+          )}
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="notice notice-error mt-4">{error}</p>}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            className="rounded bg-green-600 px-3 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-            onClick={() => run(onDone)}
-          >
-            {deadline.done ? "Mark undone" : "Mark done"}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            className="rounded bg-red-600 px-3 py-2 text-white hover:bg-red-700 disabled:opacity-50"
-            onClick={remove}
-          >
+        <div className="modal-actions">
+          <button type="button" disabled={busy} className="btn btn-quiet btn-danger-text" onClick={remove}>
             Delete
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            className="rounded bg-blue-600 px-3 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-            onClick={save}
-          >
-            {busy ? "Saving..." : "Save changes"}
-          </button>
           <span className="flex-1" />
-          <button
-            type="button"
-            disabled={busy}
-            className="rounded border border-gray-300 px-3 py-2 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-            onClick={onClose}
-          >
-            Close
+          <button type="button" disabled={busy} className="btn" onClick={() => run(onDone)}>
+            <IconCheck />
+            {deadline.done ? "Mark undone" : "Mark done"}
+          </button>
+          <button type="button" disabled={busy} className="btn btn-primary" onClick={save}>
+            {busy ? "Saving..." : "Save changes"}
           </button>
         </div>
       </div>

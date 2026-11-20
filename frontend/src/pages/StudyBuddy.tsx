@@ -27,6 +27,7 @@ import {
   type StudyRequest,
 } from "../lib/studyBuddy";
 import { supabase, supabaseConfigured } from "../lib/supabase";
+import { IconSend, IconUsers, IconX } from "../components/Icons";
 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
@@ -104,9 +105,9 @@ function StudyBuddy() {
 
   if (!supabaseConfigured) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold">Study buddy</h1>
-        <p className="text-gray-600">Study buddy needs login. Add the Supabase keys to frontend/.env (see the README).</p>
+      <main className="page">
+        <h1 className="page-title">Study buddy</h1>
+        <p className="page-sub">Study buddy needs login. Add the Supabase keys to frontend/.env (see the README).</p>
       </main>
     );
   }
@@ -159,49 +160,51 @@ function StudyBuddy() {
   }
 
   return (
-    <main className="flex flex-col gap-4 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Study buddy</h1>
-        <p className="text-gray-600">
+    <main className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Study buddy</h1>
+          <p className="page-sub">
           Get paired with a classmate who's also looking in one of your courses, then message them here. Your buddy
           only sees your first name, never your email.
-        </p>
+          </p>
+        </div>
       </div>
 
-      {error && <p className="text-red-600">{error}</p>}
-      {notice && <p className="rounded border-l-4 border-blue-500 bg-blue-50 p-3 text-sm">{notice}</p>}
+      {error && <p className="notice notice-error mb-4">{error}</p>}
+      {notice && <p className="notice notice-info mb-4">{notice}</p>}
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <section aria-labelledby="buddy-courses" className="flex flex-col gap-3 rounded-lg border p-4">
-          <div>
-            <h2 id="buddy-courses" className="text-lg font-semibold">
+      <div className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <section aria-labelledby="buddy-courses" className="panel p-4">
+          <div className="section-head mb-1">
+            <h2 id="buddy-courses" className="section-title">
               Your courses
             </h2>
-            <p className="text-sm text-gray-600">One buddy per course.</p>
+            <span className="muted text-xs">One buddy per course</span>
           </div>
 
-          {myCourses === null && <p className="text-gray-600">Loading…</p>}
+          {myCourses === null && <p className="muted">Loading…</p>}
           {myCourses !== null && courses.length === 0 && (
-            <p className="text-sm text-gray-600">
+            <p className="muted">
               No upcoming deadlines yet.{" "}
-              <Link to="/upload" className="text-blue-600 underline">
+              <Link to="/upload" className="link">
                 Upload a syllabus
               </Link>{" "}
               and your courses show up here.
             </p>
           )}
 
-          <ul className="flex flex-col divide-y">
+          <ul className="rows">
             {courses.map((course) => {
               const match = matches.find((m) => m.course === course);
               const waiting = requests.find((r) => r.course === course);
               const busy = busyCourse !== null;
               return (
-                <li key={course} className="flex flex-wrap items-center gap-2 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{course}</p>
+                <li key={course} className="row">
+                  <div className="row-text">
+                    <p className={`row-title ${match && openMatch?.id === match.id ? "text-accent" : ""}`}>{course}</p>
                     {waiting && !match && (
-                      <p className="text-sm text-gray-500">
+                      <p className="row-meta">
                         Waiting since {shortDate(waiting.created_at)}. We stop looking after {REQUEST_DAYS} days.
                       </p>
                     )}
@@ -214,9 +217,7 @@ function StudyBuddy() {
                         setNotice("");
                       }}
                       aria-pressed={openMatch?.id === match.id}
-                      className={`rounded px-3 py-1 text-sm ${
-                        openMatch?.id === match.id ? "bg-blue-600 text-white" : "border text-blue-600 hover:bg-blue-50"
-                      }`}
+                      className={`btn btn-sm ${openMatch?.id === match.id ? "btn-primary" : ""}`}
                     >
                       Chat with {partnerName(match, me)}
                     </button>
@@ -225,8 +226,9 @@ function StudyBuddy() {
                       type="button"
                       disabled={busy}
                       onClick={() => stopSearching(course)}
-                      className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                      className="btn btn-quiet btn-sm"
                     >
+                      <IconX size={14} />
                       Stop searching
                     </button>
                   ) : (
@@ -234,8 +236,9 @@ function StudyBuddy() {
                       type="button"
                       disabled={busy}
                       onClick={() => find(course)}
-                      className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+                      className="btn btn-sm"
                     >
+                      {busyCourse === course && <span className="spinner" />}
                       {busyCourse === course ? "Searching…" : "Find a buddy"}
                     </button>
                   )}
@@ -245,27 +248,30 @@ function StudyBuddy() {
           </ul>
         </section>
 
-        <section aria-label="Chat" className="flex min-h-[28rem] flex-col rounded-lg border">
+        <section aria-label="Chat" className="panel flex h-[min(640px,75vh)] min-h-[28rem] flex-col">
           {openMatch && me && openIsActive ? (
             // A fresh chat for each match, so messages and drafts don't carry over
             <Chat key={openMatch.id} match={openMatch} me={me} onLeave={leaveChat} />
           ) : openMatch && me ? (
             <div className="m-auto flex max-w-sm flex-col items-center gap-3 p-6 text-center">
-              <p>
+              <p className="muted">
                 Your chat with {partnerName(openMatch, me)} in {openMatch.course} has ended.
               </p>
               <button
                 type="button"
                 onClick={() => setOpenMatch(null)}
-                className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                className="btn btn-sm"
               >
                 Close
               </button>
             </div>
           ) : (
-            <div className="m-auto max-w-sm p-6 text-center text-gray-600">
-              <p className="font-medium text-gray-800">{matches.length ? "Pick a buddy" : "No buddies yet"}</p>
-              <p className="text-sm">
+            <div className="m-auto flex max-w-sm flex-col items-center p-6 text-center">
+              <span className="icon-tile">
+                <IconUsers />
+              </span>
+              <h2 className="section-title">{matches.length ? "Pick a buddy" : "No buddies yet"}</h2>
+              <p className="muted mt-1">
                 {matches.length
                   ? "Choose Chat on one of your courses to open the conversation."
                   : "Choose Find a buddy on a course. If no one is waiting, you'll be paired with the next classmate who joins."}
@@ -377,16 +383,16 @@ function Chat({ match, me, onLeave }: ChatProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 border-b p-3">
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{name}</p>
-          <p className="text-sm text-gray-500">{match.course}</p>
+      <div className="flex flex-wrap items-center gap-1 border-b border-border px-4 py-3">
+        <div className="row-text">
+          <p className="row-title">{name}</p>
+          <p className="row-meta">{match.course}</p>
         </div>
         <button
           type="button"
           disabled={busy}
           onClick={confirmUnmatch}
-          className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+          className="btn btn-quiet btn-sm"
         >
           Unmatch
         </button>
@@ -394,7 +400,7 @@ function Chat({ match, me, onLeave }: ChatProps) {
           type="button"
           disabled={busy}
           onClick={confirmBlock}
-          className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+          className="btn btn-quiet btn-sm btn-danger-text"
         >
           Block
         </button>
@@ -402,22 +408,24 @@ function Chat({ match, me, onLeave }: ChatProps) {
           type="button"
           disabled={busy}
           onClick={() => setReporting(!reporting)}
-          className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+          className="btn btn-quiet btn-sm btn-danger-text"
         >
           Report
         </button>
       </div>
 
       {reporting && (
-        <form onSubmit={sendReport} className="flex flex-col gap-2 border-b bg-red-50 p-3">
-          <label className="flex flex-col gap-1 text-sm">
-            What happened? This goes to the Cohort team with a copy of this chat, not to {name}. Reporting also blocks
-            them.
+        <form onSubmit={sendReport} className="flex flex-col gap-2 border-b border-border bg-danger-subtle px-4 py-3">
+          <label className="field">
+            <span className="field-label">
+              What happened? This goes to the Cohort team with a copy of this chat, not to {name}. Reporting also
+              blocks them.
+            </span>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               maxLength={MAX_REPORT}
-              className="h-20 rounded border bg-white p-2"
+              className="input h-20"
               autoFocus
             />
           </label>
@@ -425,14 +433,14 @@ function Chat({ match, me, onLeave }: ChatProps) {
             <button
               type="submit"
               disabled={busy || !reason.trim()}
-              className="rounded bg-red-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+              className="btn btn-danger btn-sm"
             >
               Send report and block
             </button>
             <button
               type="button"
               onClick={() => setReporting(false)}
-              className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+              className="btn btn-quiet btn-sm"
             >
               Cancel
             </button>
@@ -440,45 +448,43 @@ function Chat({ match, me, onLeave }: ChatProps) {
         </form>
       )}
 
-      <p className="bg-gray-50 px-3 py-2 text-xs text-gray-600">
+      <p className="border-b border-border bg-bg px-4 py-2 text-xs text-ink-3">
         Meet somewhere public on campus, and don't share personal details until you're comfortable.
       </p>
 
-      <div ref={listRef} aria-live="polite" className="flex h-80 flex-1 flex-col gap-2 overflow-y-auto p-3">
+      <div ref={listRef} aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4">
         {messages.length === 0 && (
-          <p className="m-auto text-sm text-gray-500">No messages yet. Say hi and suggest a time and place to study.</p>
+          <p className="muted m-auto text-xs">No messages yet. Say hi and suggest a time and place to study.</p>
         )}
         {messages.map((m) => {
           const mine = m.sender === me;
           return (
-            <div
-              key={m.id}
-              className={`max-w-[80%] rounded-lg px-3 py-2 ${mine ? "self-end bg-blue-600 text-white" : "self-start bg-gray-100"}`}
-            >
-              <p className="whitespace-pre-wrap break-words">{m.body}</p>
-              <p className={`text-right text-xs ${mine ? "text-blue-100" : "text-gray-500"}`}>{messageTime(m.created_at)}</p>
+            <div key={m.id} className={`bubble${mine ? " mine" : ""}`}>
+              {m.body}
+              <time dateTime={m.created_at}>{messageTime(m.created_at)}</time>
             </div>
           );
         })}
       </div>
 
-      {error && <p className="px-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="error-text px-4 pb-2">{error}</p>}
 
-      <form onSubmit={send} className="flex gap-2 border-t p-3">
+      <form onSubmit={send} className="flex gap-2 border-t border-border px-4 py-3">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           maxLength={MAX_MESSAGE}
           placeholder={`Message ${name}`}
           aria-label="Message"
-          className="min-w-0 flex-1 rounded border p-2"
+          className="input min-w-0 flex-1"
           autoFocus
         />
         <button
           type="submit"
           disabled={busy || !draft.trim()}
-          className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+          className="btn btn-primary"
         >
+          <IconSend />
           Send
         </button>
       </form>

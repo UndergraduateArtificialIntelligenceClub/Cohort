@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import ReviewPopup from "../components/ReviewPopup";
 import SharedLibrary from "../components/SharedLibrary";
+import { IconUpload } from "../components/Icons";
 import { API } from "../lib/config";
 import { saveDeadlines } from "../lib/deadlines";
 import { markUsed, shareDeadlines, type SharedSyllabus } from "../lib/library";
@@ -111,8 +112,16 @@ function Upload() {
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-4 p-8">
-      <h1 className="text-2xl font-bold">Upload</h1>
+    <main className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Upload</h1>
+          <p className="page-sub">
+            Add a syllabus as a PDF or pasted text. You'll check each deadline before it's saved.
+          </p>
+        </div>
+      </div>
+
       <SharedLibrary
         disabled={loading || saving}
         onUse={(s: SharedSyllabus) => {
@@ -122,46 +131,81 @@ function Upload() {
           setPending(s.deadlines);
         }}
       />
-      <textarea
-        value = {text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder = "Paste your syllabus text here..."
-        className = "h-48 w-full rounded border p-2"
-      />
-      <label
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {e.preventDefault(); pickFile(e.dataTransfer.files[0]);}}
-        className = "flex h-32 cursor-pointer items-center justify-center rounded border-2 border-dashed text-gray-500"
-      >
-        {file ? file.name: "Drop a PDF here or click to browse"}
-        <input
-          type = "file"
-          accept = "application/pdf"
-          className = "hidden"
-          onChange = {(e) => pickFile(e.target.files?.[0])}
+
+      <div className="add-grid">
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {e.preventDefault(); pickFile(e.dataTransfer.files[0]);}}
+          className="dropzone"
+        >
+          <span className="icon-tile">
+            <IconUpload />
+          </span>
+          <span className="font-semibold">{file ? file.name : "Drop a PDF here"}</span>
+          <span className="muted">
+            {file ? "Click to choose a different file" : <>or <span className="link">click to browse</span></>}
+          </span>
+          <input
+            type = "file"
+            accept = "application/pdf"
+            className = "sr-only"
+            onChange = {(e) => pickFile(e.target.files?.[0])}
+            />
+        </label>
+
+        <div className="panel flex flex-col p-4">
+          <label htmlFor="syllabus-text" className="field-label mb-1">
+            Or paste the text
+          </label>
+          <textarea
+            id="syllabus-text"
+            value = {text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder = "Paste your syllabus text here..."
+            className = "input min-h-44 flex-1"
           />
+        </div>
+      </div>
+
+      <label className="mt-5 flex cursor-pointer items-start gap-3 border-t border-border py-3">
+        <input
+          type="checkbox"
+          className="checkbox mt-0.5"
+          checked={share}
+          onChange={(e) => setShare(e.target.checked)}
+        />
+        <span>
+          <span className="block font-medium">Share with classmates</span>
+          <span className="muted block text-xs">
+            Add the deadlines you confirm to the course library. Your name and email are never shown.
+          </span>
+        </span>
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-600">
-        <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
-        Share the deadlines I confirm with classmates in the course library (your name and email are never shown)
-      </label>
-      <button
-        onClick={handleSubmit}
-        disabled={loading || saving || (!text.trim() && !file)}
-        className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
-      >
-        {loading ? "Parsing..." : "Parse syllabus"}
-      </button>
 
-      {error && <p className="text-red-600">{error}</p>}
-
-      {saving && <p className="text-gray-600">Saving deadlines...</p>}
-
-      {unsaved && !saving && (
-        <button onClick={() => save(unsaved)} className="self-start rounded border px-4 py-2">
-          Try saving again
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={handleSubmit}
+          disabled={loading || saving || (!text.trim() && !file)}
+          className="btn btn-primary"
+        >
+          {loading && <span className="spinner" />}
+          {loading ? "Parsing..." : "Parse syllabus"}
         </button>
-      )}
+
+        {saving && (
+          <span className="muted inline-flex items-center gap-2">
+            <span className="spinner" /> Saving deadlines...
+          </span>
+        )}
+
+        {unsaved && !saving && (
+          <button onClick={() => save(unsaved)} className="btn">
+            Try saving again
+          </button>
+        )}
+      </div>
+
+      {error && <p className="notice notice-error mt-4">{error}</p>}
 
       {pending && (
         <ReviewPopup
