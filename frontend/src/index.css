@@ -601,6 +601,29 @@
     text-align: center;
   }
 
+  /* "Add to Home Screen" tip on iPhone/iPad Safari, pinned to the bottom */
+  .install-tip {
+    position: fixed;
+    right: var(--space-3);
+    bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    left: var(--space-3);
+    z-index: 30;
+    align-items: center;
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: var(--shadow-float);
+    animation: rise-in var(--duration) var(--ease);
+  }
+
+  .install-tip-text {
+    flex: 1;
+  }
+
+  .install-tip-share {
+    display: inline;
+    vertical-align: -2px;
+  }
+
   /* ---------- Empty state ---------- */
   .empty {
     padding: var(--space-7) var(--space-6);
