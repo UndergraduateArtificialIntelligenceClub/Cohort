@@ -27,6 +27,9 @@
   --accent-subtle: #e8f2ed;
   --danger: #b42318;
   --danger-subtle: #fdf0ee;
+  /* Hell week only (calendar sidebar), so the warm color always means "heavy week" */
+  --warn: #b54708;
+  --warn-subtle: #fdf3e7;
 
   --text-sm: 12px;
   --text-md: 14px;
@@ -764,11 +767,367 @@
     font-size: var(--text-sm);
     opacity: 0.6;
   }
+
+  /* ---------- Calendar page: grid + sidebar (components/CalendarSidebar.tsx) ---------- */
+  .cal-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .side {
+    position: sticky;
+    top: 64px;
+    min-width: 0;
+  }
+
+  /* Sections are split by thin lines, not boxed cards */
+  .side-sec {
+    padding: var(--space-4);
+  }
+
+  .side-sec + .side-sec {
+    border-top: 1px solid var(--border);
+  }
+
+  .side-h-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .side-h {
+    margin-bottom: var(--space-2);
+    color: var(--ink-3);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .side-count {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .side-note {
+    font-size: var(--text-sm);
+  }
+
+  /* Course code with its color dot */
+  .side-course {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Next up: the one thing with visual weight */
+  .side-hero {
+    padding: var(--space-3);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c) 8%, var(--surface));
+    box-shadow: inset 3px 0 0 var(--c);
+  }
+
+  .side-hero-title {
+    display: block;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: 600 var(--text-lg) / 1.3 var(--font-heading);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .side-hero-title:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .side-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px var(--space-2);
+    margin-top: var(--space-1);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .side-hero-meta strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .side-hero-meta span + span::before,
+  .side-hero-meta strong + span::before {
+    content: "·";
+    margin-right: var(--space-2);
+    color: var(--ink-3);
+  }
+
+  .side-calm-title {
+    font-weight: 500;
+  }
+
+  .side-calm .muted {
+    margin-top: 2px;
+    font-size: var(--text-sm);
+  }
+
+  /* Deadline rows */
+  .side-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-block: 6px;
+  }
+
+  .side-row + .side-row {
+    border-top: 1px solid var(--border);
+  }
+
+  .side-row-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .side-row-title {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--ink);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .side-row-main:hover .side-row-title {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .side-row-sub {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  .side-row-when {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: flex-end;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+
+  .side-row-when small {
+    color: var(--ink-3);
+    font-size: 11px;
+  }
+
+  .side-row.is-done .side-row-title {
+    color: var(--ink-3);
+    text-decoration: line-through;
+  }
+
+  .side-more {
+    display: block;
+    margin-top: var(--space-1);
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .side-more:hover {
+    color: var(--ink);
+  }
+
+  /* Did you finish? */
+  .side-ask {
+    background: var(--bg);
+  }
+
+  .side-ask-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding-block: 4px;
+  }
+
+  .link-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  /* Crunch forecast: one bar per week */
+  .spark {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    height: 44px;
+  }
+
+  .spark-bar {
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    cursor: pointer;
+  }
+
+  .spark-bar span {
+    width: 100%;
+    border-radius: 3px;
+    background: var(--border-strong);
+    transition: background var(--duration) var(--ease);
+  }
+
+  .spark-bar:hover span {
+    background: var(--ink-3);
+  }
+
+  .spark-bar.is-focus span {
+    background: var(--ink-2);
+  }
+
+  .spark-bar.is-hell span {
+    background: var(--warn);
+  }
+
+  .spark-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    color: var(--ink-3);
+    font-size: 11px;
+  }
+
+  .crunch {
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .crunch.is-hell {
+    padding: var(--space-3);
+    border-radius: var(--radius);
+    background: var(--warn-subtle);
+  }
+
+  .crunch-title {
+    font-size: var(--text-md);
+  }
+
+  .hell-tag {
+    color: var(--warn);
+    font-weight: 600;
+  }
+
+  .crunch-sum {
+    margin-top: 2px;
+    color: var(--ink-2);
+  }
+
+  .crunch-list {
+    margin-top: var(--space-2);
+  }
+
+  .crunch-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: 3px 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .crunch-item:hover .crunch-item-title {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .crunch-item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .crunch-item.is-done .crunch-item-title {
+    color: var(--ink-3);
+    text-decoration: line-through;
+  }
+
+  .crunch-item-w {
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .crunch-tip {
+    margin-top: var(--space-2);
+    color: var(--ink);
+  }
+
+  .crunch-foot {
+    margin-top: var(--space-2);
+    color: var(--ink-3);
+    font-size: 11px;
+  }
 }
 
 /* =========================================================
    Narrow screens
    ========================================================= */
+@media (max-width: 960px) {
+  @layer components {
+    .cal-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* On phones "what's next" matters more than the month, so it comes first */
+    .side {
+      position: static;
+      order: -1;
+    }
+  }
+}
+
 @media (max-width: 720px) {
   .page {
     padding: var(--space-5) var(--space-4) var(--space-6);
@@ -966,6 +1325,14 @@ html:root {
   border-radius: var(--radius);
   background: var(--accent);
   color: var(--surface);
+}
+
+/* Hell week's row (tinted) and the day a sidebar row is hovered over (outlined) */
+.cal-hell {
+  background: color-mix(in srgb, var(--warn-subtle) 80%, transparent);
+}
+.cal-hover {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* Phones: day cells are too narrow for titles, so events become tappable color bars */

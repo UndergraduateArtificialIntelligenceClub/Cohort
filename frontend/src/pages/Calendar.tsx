@@ -1,11 +1,13 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { deleteDeadline, loadDeadlines, setDone, updateDeadline } from "../lib/deadlines";
 import type { Deadline } from "../types";
-import FullCalendar from "@fullcalendar/react";
+import FullCalendar, { type CalendarRef } from "@fullcalendar/react";
 import themePlugin from "@fullcalendar/react/themes/monarch";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
+import CalendarSidebar from "../components/CalendarSidebar";
 import DeadlineModal from "../components/DeadlineModal";
+import { addDays, makeForecast, todayISO, toISO, WEEK_START } from "../lib/planner";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/monarch/theme.css";
@@ -26,6 +28,10 @@ function Calendar() {
   const [deadlines, setDeadlines] = useState<Deadline[] | null>(null);
   const [error, setError] = useState("");
   const [selectedDeadline, setSelectedDeadline] = useState<Deadline | null>(null);
+  // The day a sidebar row is hovered over, outlined on the grid
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const calendarRef = useRef<CalendarRef>(null);
+  const calendarPanel = useRef<HTMLElement>(null);
 
   // Load the logged in user's saved deadlines from Supabase
   useEffect(() => {
@@ -40,7 +46,31 @@ function Calendar() {
     setSelectedDeadline(updated);
   }
 
+  // Tick or untick from the sidebar. Shown at once, put back if saving fails.
+  async function toggleDone(deadline: Deadline) {
+    const done = !deadline.done;
+    const apply = (value: boolean) =>
+      setDeadlines((current) => current?.map((d) => (d.id === deadline.id ? { ...d, done: value } : d)) ?? null);
+    apply(done);
+    try {
+      await setDone(deadline.id!, done);
+    } catch (e) {
+      apply(!done);
+      setError((e as Error).message);
+    }
+  }
+
+  // Sidebar's forecast: move the grid to that week and bring it into view (it sits below the sidebar on phones)
+  function showWeek(start: string) {
+    calendarRef.current?.getApi().gotoDate(start);
+    calendarPanel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   const courseColors = colorCourses(deadlines ?? []);
+  const today = todayISO();
+  // Tint the hell week's row on the grid, if there is one
+  const hell = makeForecast(deadlines ?? [], today).hell;
+  const inHellWeek = (date: string) => !!hell && date >= hell.start && date <= addDays(hell.start, 6);
   // Convert Deadline objects into FullCalendar events.
   const events = (deadlines ?? []).map((deadline) => ({
     title: deadline.title,
@@ -77,29 +107,49 @@ function Calendar() {
           </Link>
         </div>
       )}
-      <section className="panel cal-panel" aria-label="Month">
-        <FullCalendar
-          plugins={[themePlugin, dayGridPlugin]}
-          initialView="dayGridMonth"
-          events={events}
-          fixedWeekCount={false}
-          height="auto"
-          borderless
-          eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
-          eventClass="cal-event"
-          dayCellClass={(arg) => (arg.isToday ? "cal-today" : undefined)}
-          eventContent={(info) => {
-            const deadline: Deadline = info.event.extendedProps.deadline;
-            // A tinted bar in the course color; done ones are grey and crossed out (.ev-pill in index.css)
-            return (
-              <span className={`ev-pill${deadline.done ? " is-done" : ""}`} style={courseVar(courseColors[deadline.course])}>
-                <span className="ev-text">{info.event.title}</span>
-              </span>
-            );
-          }}
-          headerToolbar={{ start: "title", center: "", end: "prev,next" }}
-        />
-      </section>
+      <div className={deadlines?.length ? "cal-layout" : undefined}>
+        <section ref={calendarPanel} className="panel cal-panel" aria-label="Month">
+          <FullCalendar
+            ref={calendarRef}
+            plugins={[themePlugin, dayGridPlugin]}
+            firstDay={WEEK_START}
+            initialView="dayGridMonth"
+            events={events}
+            fixedWeekCount={false}
+            height="auto"
+            borderless
+            eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
+            eventClass="cal-event"
+            dayCellClass={(arg) => {
+              const date = toISO(arg.date);
+              return [arg.isToday && "cal-today", inHellWeek(date) && "cal-hell", date === hoveredDate && "cal-hover"]
+                .filter(Boolean)
+                .join(" ");
+            }}
+            eventContent={(info) => {
+              const deadline: Deadline = info.event.extendedProps.deadline;
+              // A tinted bar in the course color; done ones are grey and crossed out (.ev-pill in index.css)
+              return (
+                <span className={`ev-pill${deadline.done ? " is-done" : ""}`} style={courseVar(courseColors[deadline.course])}>
+                  <span className="ev-text">{info.event.title}</span>
+                </span>
+              );
+            }}
+            headerToolbar={{ start: "title", center: "", end: "today prev,next" }}
+          />
+        </section>
+        {deadlines && deadlines.length > 0 && (
+          <CalendarSidebar
+            deadlines={deadlines}
+            courseColors={courseColors}
+            today={today}
+            onOpen={setSelectedDeadline}
+            onToggleDone={toggleDone}
+            onHoverDate={setHoveredDate}
+            onShowWeek={showWeek}
+          />
+        )}
+      </div>
       {selectedDeadline?.id && (
         <DeadlineModal
           // A fresh popup for each deadline, so its edits start from that deadline
