@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-// Installing Cohort as a home screen app. There's only a manifest (public/manifest.webmanifest),
-// no service worker, so nothing is cached for offline use.
+// Installing Cohort as a home screen app, from the manifest (public/manifest.webmanifest).
+// The service worker (public/sw.js) only handles notifications, so nothing is cached for offline use.
 // - Desktop Chrome/Edge: an "Install Cohort" button in the nav (components/InstallPrompt.tsx)
 // - Phones: "Add Cohort to your Home Screen" in the account menu (components/AccountMenu.tsx). It opens the
 //   same dialog where the browser has one (Android Chrome), otherwise it shows the steps (iPhone).

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { setAppBadge } from "./notifications";
 import { unreadCount } from "./studyBuddy";
 import { supabase, supabaseConfigured } from "./supabase";
 
 // Unread study buddy chats (#67): active chats with a new match or a message you haven't opened yet.
 // App.tsx calls this once and hands the number to both navs (top tabs on desktop, bottom tabs on phones).
+// The installed app's icon shows the same number (lib/notifications.ts); pushes update it while Cohort is closed.
 export function useUnreadCount(): number {
   const [count, setCount] = useState(0);
 
@@ -32,6 +34,10 @@ export function useUnreadCount(): number {
       window.removeEventListener("focus", update);
     };
   }, []);
+
+  useEffect(() => {
+    setAppBadge(count);
+  }, [count]);
 
   return count;
 }

@@ -3,11 +3,14 @@ import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
+import { logOut } from "./lib/logout";
 import { useUnreadCount } from "./lib/useUnreadCount";
 import AccountMenu from "./components/AccountMenu";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
-import { IconCalendar, IconLogout, IconUpload, IconUsers, Logo } from "./components/Icons";
+import { IconBell, IconCalendar, IconLogout, IconUpload, IconUsers, Logo } from "./components/Icons";
 import { InstallButton } from "./components/InstallPrompt";
+import NotificationListener from "./components/NotificationListener";
+import NotificationSettings from "./components/NotificationSettings";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import StudyBuddy from "./pages/StudyBuddy";
@@ -28,6 +31,8 @@ function App() {
   const [checking, setChecking] = useState(supabaseConfigured);
   // Unread study buddy chats (#67), shown on the Study buddy tab
   const unread = useUnreadCount();
+  // Desktop: the Notifications sheet, opened from the bell in the nav (phones open it from the account menu)
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // On page load: are we already logged in? Then keep listening for login/logout
   useEffect(() => {
@@ -52,6 +57,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      {session && <NotificationListener />}
       {!supabaseConfigured && (
         <p className="border-b border-border bg-subtle px-6 py-2 text-xs text-ink-2">
           Supabase isn't set up, so login is off. Add the keys to frontend/.env (see the README) to use login.
@@ -74,18 +80,22 @@ function App() {
           </div>
           {session && (
             <div className="nav-right">
-              {/* Desktop: email, install and log out inline. Phones: all three live in the account menu. */}
+              {/* Desktop: email, notifications, install and log out inline. Phones: all of them live in the account menu. */}
               <span className="nav-email" title={session.user.email}>
                 {session.user.email}
               </span>
               <span className="nav-desktop">
-                <InstallButton />
-                {/* "local" logs out this browser even if the network request fails */}
                 <button
                   type="button"
-                  onClick={() => supabase.auth.signOut({ scope: "local" })}
-                  className="btn btn-quiet btn-sm"
+                  className="icon-btn"
+                  aria-label="Notifications"
+                  title="Notifications"
+                  onClick={() => setNotificationsOpen(true)}
                 >
+                  <IconBell size={18} />
+                </button>
+                <InstallButton />
+                <button type="button" onClick={logOut} className="btn btn-quiet btn-sm">
                   <IconLogout />
                   Log out
                 </button>
@@ -95,6 +105,7 @@ function App() {
           )}
         </nav>
       </header>
+      {notificationsOpen && <NotificationSettings onClose={() => setNotificationsOpen(false)} />}
       {/* Phones: the pages as tabs along the bottom, where thumbs reach (hidden on desktop in index.css) */}
       <nav className="bottom-tabs" aria-label="Pages">
         {links.map(({ to, label, icon: Icon }) => (

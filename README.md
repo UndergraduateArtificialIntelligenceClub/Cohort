@@ -96,6 +96,41 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
 
 `instructor` is `null` when the syllabus doesn't name one.
 
+## Notifications
+Cohort sends push notifications: a deadline reminder the evening before each deadline (plus 3 days' notice for exams and anything worth 15% or more), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
+
+How it fits together:
+- [frontend/public/sw.js](frontend/public/sw.js) shows the notifications. [frontend/src/lib/notifications.ts](frontend/src/lib/notifications.ts) turns them on and off.
+- [supabase/migrations/20261121120000_notifications.sql](supabase/migrations/20261121120000_notifications.sql) decides what's due. A `pg_cron` job checks every minute.
+- [supabase/functions/send-notifications](supabase/functions/send-notifications) sends the pushes.
+
+Working on something else? You can skip all of this. Without `VITE_VAPID_PUBLIC_KEY`, the Notifications panel just says it isn't set up.
+
+### Testing notifications locally
+1. Ask the project lead for `VITE_VAPID_PUBLIC_KEY` and add it to `frontend/.env`.
+2. Open http://localhost:5173 in Chrome or Edge (iPhones only get notifications from the Home Screen app, so use the live site for those).
+3. Turn them on from the bell in the top bar.
+
+### Setting it up on a Supabase project (project lead, once)
+1. Run the migration. It turns on `pg_cron` and `pg_net` and schedules the job.
+2. Make the keys. This prints a private `VAPID_KEYS` and a public `VITE_VAPID_PUBLIC_KEY`:
+   ```bash
+   node supabase/scripts/generate-vapid-keys.mjs
+   ```
+3. Deploy the function and give it its secrets. Pick any long random string for `NOTIFY_SECRET` (e.g. `openssl rand -hex 32`):
+   ```bash
+   supabase functions deploy send-notifications --no-verify-jwt
+   supabase secrets set VAPID_KEYS='<from step 2>' NOTIFY_SECRET='<random string>' VAPID_CONTACT='mailto:<a team email>'
+   ```
+4. Tell the database where the function is. Run this in the Supabase SQL editor, using the same `NOTIFY_SECRET`:
+   ```sql
+   select vault.create_secret('https://<project-ref>.supabase.co/functions/v1', 'cohort_functions_url');
+   select vault.create_secret('<random string>', 'cohort_notify_secret');
+   ```
+5. Add `VITE_VAPID_PUBLIC_KEY` to Vercel's environment variables and redeploy the frontend.
+
+Check it's working: Supabase dashboard → Edge Functions → send-notifications → Logs. Each run logs how many notifications it sent. If you make new VAPID keys later, everyone has to turn notifications on again.
+
 ## Team
 - Matthew Wang (project lead)
 - Wasi Abbas
