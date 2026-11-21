@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase, supabaseConfigured } from "../lib/supabase";
+import { loadMyCourses } from "../lib/deadlines";
 import {
   dismissReport,
   loadReports,
@@ -10,10 +11,11 @@ import {
   type SharedSyllabus,
 } from "../lib/library";
 import { useIsPhone } from "../lib/useIsPhone";
-import { IconChevronRight, IconPlus, IconSearch, IconTrash, IconUsers } from "./Icons";
+import { IconCheck, IconChevronRight, IconPlus, IconSearch, IconTrash, IconUsers } from "./Icons";
 
 // Course library search on the upload page: issue #66
 // Find a syllabus a classmate already parsed and review its deadlines instead of uploading your own.
+// Courses already on your calendar show "Added" instead of "Use". Delete a course's deadlines and "Use" comes back.
 type Props = {
   disabled: boolean;
   onUse: (syllabus: SharedSyllabus) => void;
@@ -29,6 +31,8 @@ function ago(timestamp: string) {
 
 function SharedLibrary({ disabled, onUse }: Props) {
   const [userId, setUserId] = useState<string | null>(null);
+  // Courses already on the user's calendar (normalized, like shared courses)
+  const [myCourses, setMyCourses] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   // null until the first search comes back
   const [results, setResults] = useState<SharedSyllabus[] | null>(null);
@@ -46,6 +50,8 @@ function SharedLibrary({ disabled, onUse }: Props) {
   useEffect(() => {
     if (!supabaseConfigured) return;
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
+    // If this fails, every course just shows "Use"; saving still skips deadlines you already have
+    loadMyCourses().then(setMyCourses).catch(console.error);
   }, []);
 
   // Search as you type, after a short pause
@@ -159,6 +165,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
         <ul className="rows">
           {results.map((s) => {
             const mine = s.uploaded_by === userId;
+            const added = myCourses.has(s.course);
             const myReport = reports.find((r) => r.syllabus_id === s.id && r.reported_by === userId);
             // Reports from classmates on your own entry
             const onMine = mine ? reports.filter((r) => r.syllabus_id === s.id) : [];
@@ -201,14 +208,20 @@ function SharedLibrary({ disabled, onUse }: Props) {
                       {myReport ? "Edit report" : "Report a mistake"}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    disabled={disabled || busy}
-                    onClick={() => onUse(s)}
-                    className="btn btn-sm"
-                  >
-                    <IconPlus size={14} /> Use
-                  </button>
+                  {added ? (
+                    <button type="button" disabled className="btn btn-sm" title="Already on your calendar">
+                      <IconCheck size={14} /> Added
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={disabled || busy}
+                      onClick={() => onUse(s)}
+                      className="btn btn-sm"
+                    >
+                      <IconPlus size={14} /> Use
+                    </button>
+                  )}
                 </div>
 
                 {reporting === s.id && (
