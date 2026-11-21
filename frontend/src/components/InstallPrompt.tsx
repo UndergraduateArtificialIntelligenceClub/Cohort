@@ -95,13 +95,17 @@ export function IosInstallTip() {
   };
 
   return (
-    <div className="install-tip notice notice-info" role="note">
-      <p className="install-tip-text">
-        Install Cohort: tap Share <IconShare className="install-tip-share" /> then <strong>Add to Home Screen</strong>.
-      </p>
-      <button type="button" onClick={dismiss} className="icon-btn" aria-label="Dismiss">
-        <IconX />
-      </button>
-    </div>
+    <>
+      {/* Empty space at the end of the page so the fixed tip never covers the last thing on it */}
+      <div className="install-tip-spacer" aria-hidden="true" />
+      <div className="install-tip notice notice-info" role="note">
+        <p className="install-tip-text">
+          Install Cohort: tap Share <IconShare className="install-tip-share" /> then <strong>Add to Home Screen</strong>.
+        </p>
+        <button type="button" onClick={dismiss} className="icon-btn" aria-label="Dismiss">
+          <IconX />
+        </button>
+      </div>
+    </>
   );
 }
