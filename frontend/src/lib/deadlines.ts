@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { normalizeCourse } from "./courses";
 import type { Deadline } from "../types";
 
 // Save and load the logged in user's deadlines (issue #51). No UI here; pages call these.
@@ -18,11 +19,13 @@ async function currentUserId(): Promise<string> {
 // Add deadlines (e.g. the ones confirmed in the review popup) to the user's saved list.
 // Deadlines the user already has (same course, title and date) are skipped, so uploading
 // the same syllabus twice doesn't create duplicates (#64).
+// Course names are stored normalized ("Stat 151" -> "STAT 151"), so a syllabus you uploaded and
+// the same course from the shared library count as the same course.
 export async function saveDeadlines(deadlines: Deadline[]): Promise<void> {
   if (deadlines.length === 0) return;
   const user_id = await currentUserId();
   // Every row needs user_id, or the insert policy rejects it
-  const rows = deadlines.map((d) => ({ ...d, weight: d.weight ?? null, user_id }));
+  const rows = deadlines.map((d) => ({ ...d, course: normalizeCourse(d.course), weight: d.weight ?? null, user_id }));
   // Matches the unique constraint in supabase/migrations/20261118000000_unique_deadlines.sql
   const { error } = await supabase
     .from("deadlines")
@@ -42,14 +45,25 @@ export async function loadDeadlines(): Promise<Deadline[]> {
   return data as Deadline[];
 }
 
+// The courses the user has deadlines in, normalized, e.g. {"CMPUT 174", "STAT 151"}.
+// The course library uses it to mark courses that are already on the calendar.
+export async function loadMyCourses(): Promise<Set<string>> {
+  const user_id = await currentUserId();
+  const { data, error } = await supabase.from("deadlines").select("course").eq("user_id", user_id);
+  if (error) throw new Error(`Couldn't load your courses: ${error.message}`);
+  // Rows saved before course names were normalized may still be "Stat 151"
+  return new Set(data.map((row) => normalizeCourse(row.course)));
+}
+
 // Update the fields on an existing deadline
 export async function updateDeadline(
   id: string,
   changes: Partial<Deadline>
 ): Promise<void> {
+  const row = changes.course === undefined ? changes : { ...changes, course: normalizeCourse(changes.course) };
   const { error } = await supabase
     .from("deadlines")
-    .update(changes)
+    .update(row)
     .eq("id", id);
 
   if (error) {

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { CATEGORIES, type Deadline } from "../types";
+import { normalizeCourse } from "../lib/courses";
 import { IconCheck, IconX } from "./Icons";
 
 // Popup for one saved deadline on the calendar: issue #59
@@ -73,7 +74,7 @@ function DeadlineModal({ deadline, onClose, onDone, onDelete, onSave }: Props) {
       setError(problem);
       return;
     }
-    run(() => onSave({ ...edited, course: edited.course.trim(), title: edited.title.trim() }));
+    run(() => onSave({ ...edited, course: normalizeCourse(edited.course), title: edited.title.trim() }));
   }
 
   function remove() {
