@@ -9,6 +9,7 @@ import { saveDeadlines } from "../lib/deadlines";
 import { markUsed, shareDeadlines, type SharedSyllabus } from "../lib/library";
 import type { Deadline, ParseResponse } from "../types";
 import { authHeaders } from "../lib/supabase";
+import { useIsPhone } from "../lib/useIsPhone";
 
 function Upload() {
   const [text, setText] = useState("");
@@ -27,6 +28,9 @@ function Upload() {
   // Share your own uploads to the course library (#66)
   const [share, setShare] = useState(true);
   const navigate = useNavigate();
+  // Phones: the paste box stays folded until asked for, and the main button is pinned above the tabs
+  const isPhone = useIsPhone();
+  const [pasteOpen, setPasteOpen] = useState(false);
 
   // Save what the user confirmed in the review popup, then show it on the calendar
   async function save(confirmed: Deadline[]) {
@@ -113,6 +117,38 @@ function Upload() {
     }
   }
 
+  // Saving status and the main button: in the paste box on desktop, pinned to the bottom on phones
+  const actions = (
+    <>
+      {saving && (
+        <span className="muted paste-status">
+          <span className="spinner" /> Saving deadlines
+        </span>
+      )}
+      {unsaved && !saving && (
+        <button type="button" onClick={() => save(unsaved)} className="btn">
+          Try saving again
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={loading || saving || (!text.trim() && !file)}
+        className="btn btn-primary"
+      >
+        {loading ? (
+          <>
+            <span className="spinner" /> Finding deadlines
+          </>
+        ) : (
+          <>
+            Find deadlines <IconArrowRight />
+          </>
+        )}
+      </button>
+    </>
+  );
+
   return (
     <main className="page add-page">
       <div className="page-head">
@@ -173,50 +209,31 @@ function Upload() {
           <span className="dz-hint muted">The PDF needs selectable text. Scanned pages won't work.</span>
         </label>
 
-        <div className="panel paste">
-          <div className="section-head">
-            <label className="section-title" htmlFor="syllabus-text">
-              Paste text
-            </label>
-            <span className="muted tabular">{text.length.toLocaleString()} characters</span>
+        {!isPhone || pasteOpen || text ? (
+          <div className="panel paste">
+            <div className="section-head">
+              <label className="section-title" htmlFor="syllabus-text">
+                Paste text
+              </label>
+              <span className="muted tabular">{text.length.toLocaleString()} characters</span>
+            </div>
+            <textarea
+              id="syllabus-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Paste the schedule or assignment list from your syllabus"
+              rows={9}
+              className="input paste-area"
+              // Phones: it was just unfolded on purpose, so bring up the keyboard
+              autoFocus={isPhone && pasteOpen}
+            />
+            {!isPhone && <div className="paste-foot">{actions}</div>}
           </div>
-          <textarea
-            id="syllabus-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Paste the schedule or assignment list from your syllabus"
-            rows={9}
-            className="input paste-area"
-          />
-          <div className="paste-foot">
-            {saving && (
-              <span className="muted paste-status">
-                <span className="spinner" /> Saving deadlines
-              </span>
-            )}
-            {unsaved && !saving && (
-              <button type="button" onClick={() => save(unsaved)} className="btn">
-                Try saving again
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || saving || (!text.trim() && !file)}
-              className="btn btn-primary"
-            >
-              {loading ? (
-                <>
-                  <span className="spinner" /> Finding deadlines
-                </>
-              ) : (
-                <>
-                  Find deadlines <IconArrowRight />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        ) : (
+          <button type="button" className="paste-open" onClick={() => setPasteOpen(true)}>
+            Or paste the text instead
+          </button>
+        )}
 
         {loading && (
           <div className="busy-overlay" role="status" aria-live="polite">
@@ -248,6 +265,8 @@ function Upload() {
           </span>
         </label>
       </fieldset>
+
+      {isPhone && <div className="phone-bar">{actions}</div>}
 
       {pending && (
         <ReviewPopup

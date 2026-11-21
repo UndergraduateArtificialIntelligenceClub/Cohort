@@ -13,6 +13,7 @@ import {
   weightOf,
   type Week,
 } from "../lib/planner";
+import { loadDismissed, saveDismissed } from "../lib/finishAsk";
 
 // The panel next to the calendar: Next up, This week, and the Crunch forecast (hell week).
 // The rules live in lib/planner.ts; this file only draws them.
@@ -29,17 +30,6 @@ type Props = {
 
 // How many rows "This week" shows before "+N more"
 const ROW_CAP = 5;
-
-// "Did you finish?" answers of "No" are kept in this browser, so each late deadline is asked about once
-const DISMISSED_KEY = "cohort:did-you-finish:dismissed";
-
-function loadDismissed(): Set<string> {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"));
-  } catch {
-    return new Set();
-  }
-}
 
 const courseVar = (color: string | undefined) => ({ "--c": color }) as CSSProperties;
 
@@ -62,7 +52,7 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
     if (!d.id) return;
     const next = new Set(dismissed).add(d.id);
     setDismissed(next);
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
+    saveDismissed(next);
   }
 
   // Course code next to the dot, so courses are told apart by more than color

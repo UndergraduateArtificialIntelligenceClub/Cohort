@@ -81,6 +81,41 @@ export const IconUpload = (p: IconProps) => (
   </Icon>
 );
 
+export const IconUserCircle = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="10" r="3" />
+    <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+  </Icon>
+);
+
+export const IconPhone = (p: IconProps) => (
+  <Icon {...p}>
+    <rect width="14" height="20" x="5" y="2" rx="2" />
+    <path d="M12 18h.01" />
+  </Icon>
+);
+
+export const IconChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>
+);
+
+export const IconChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>
+);
+
+export const IconMore = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </Icon>
+);
+
 export const IconArrowRight = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 12h14M12 5l7 7-7 7" />

@@ -5,9 +5,12 @@ import type { Deadline } from "../types";
 import FullCalendar, { type CalendarRef } from "@fullcalendar/react";
 import themePlugin from "@fullcalendar/react/themes/monarch";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
+import interactionPlugin from "@fullcalendar/react/interaction";
+import AgendaList, { AgendaRow } from "../components/AgendaList";
 import CalendarSidebar from "../components/CalendarSidebar";
 import DeadlineModal from "../components/DeadlineModal";
-import { addDays, makeForecast, todayISO, toISO, WEEK_START } from "../lib/planner";
+import { addDays, longDate, makeForecast, todayISO, toISO, WEEK_START } from "../lib/planner";
+import { useIsPhone } from "../lib/useIsPhone";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/monarch/theme.css";
@@ -32,6 +35,13 @@ function Calendar() {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const calendarRef = useRef<CalendarRef>(null);
   const calendarPanel = useRef<HTMLElement>(null);
+  // Phones: a list of what's coming (components/AgendaList.tsx) or the month grid with the tapped day's
+  // deadlines under it. Desktop always shows the grid with the sidebar.
+  const isPhone = useIsPhone();
+  const [view, setView] = useState<"list" | "month">("list");
+  const [pickedDay, setPickedDay] = useState(todayISO);
+  // Where the month grid opens (it remounts each time Month is picked)
+  const [gridDate, setGridDate] = useState(todayISO);
 
   // Load the logged in user's saved deadlines from Supabase
   useEffect(() => {
@@ -60,8 +70,20 @@ function Calendar() {
     }
   }
 
-  // Sidebar's forecast: move the grid to that week and bring it into view (it sits below the sidebar on phones)
+  // Sidebar's forecast: move the grid to that week and bring it into view (it sits below the sidebar on tablets).
+  // On phones the list's hell week card switches to Month and picks that week's first deadline.
   function showWeek(start: string) {
+    if (isPhone) {
+      const first = (deadlines ?? [])
+        .map((d) => d.date)
+        .filter((date) => date >= start && date <= addDays(start, 6))
+        .sort()[0];
+      setGridDate(start);
+      setPickedDay(first ?? start);
+      setView("month");
+      window.scrollTo({ top: 0 });
+      return;
+    }
     calendarRef.current?.getApi().gotoDate(start);
     calendarPanel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -72,6 +94,9 @@ function Calendar() {
   const hell = makeForecast(deadlines ?? [], today).hell;
   const inHellWeek = (date: string) => !!hell && date >= hell.start && date <= addDays(hell.start, 6);
   // Convert Deadline objects into FullCalendar events.
+  const hasDeadlines = !!deadlines && deadlines.length > 0;
+  const showList = isPhone && view === "list" && hasDeadlines;
+  const pickedDeadlines = (deadlines ?? []).filter((d) => d.date === pickedDay);
   const events = (deadlines ?? []).map((deadline) => ({
     title: deadline.title,
     date: deadline.date,
@@ -84,8 +109,25 @@ function Calendar() {
     <main className="page">
       <div className="page-head">
         <h1 className="page-title">Calendar</h1>
-        {/* Which color is which course */}
-        {Object.keys(courseColors).length > 0 && (
+        {isPhone && hasDeadlines && (
+          <div className="seg" role="group" aria-label="Calendar view">
+            <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
+              List
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "month"}
+              onClick={() => {
+                setGridDate(pickedDay);
+                setView("month");
+              }}
+            >
+              Month
+            </button>
+          </div>
+        )}
+        {/* Which color is which course (the list names the course on every row, so it doesn't need this) */}
+        {!showList && Object.keys(courseColors).length > 0 && (
           <ul className="chips" aria-label="Courses">
             {Object.entries(courseColors).map(([course, color]) => (
               <li key={course} className="chip" style={courseVar(color)}>
@@ -107,49 +149,90 @@ function Calendar() {
           </Link>
         </div>
       )}
-      <div className={deadlines?.length ? "cal-layout" : undefined}>
-        <section ref={calendarPanel} className="panel cal-panel" aria-label="Month">
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[themePlugin, dayGridPlugin]}
-            firstDay={WEEK_START}
-            initialView="dayGridMonth"
-            events={events}
-            fixedWeekCount={false}
-            height="auto"
-            borderless
-            eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
-            eventClass="cal-event"
-            dayCellClass={(arg) => {
-              const date = toISO(arg.date);
-              return [arg.isToday && "cal-today", inHellWeek(date) && "cal-hell", date === hoveredDate && "cal-hover"]
-                .filter(Boolean)
-                .join(" ");
-            }}
-            eventContent={(info) => {
-              const deadline: Deadline = info.event.extendedProps.deadline;
-              // A tinted bar in the course color; done ones are grey and crossed out (.ev-pill in index.css)
-              return (
-                <span className={`ev-pill${deadline.done ? " is-done" : ""}`} style={courseVar(courseColors[deadline.course])}>
-                  <span className="ev-text">{info.event.title}</span>
-                </span>
-              );
-            }}
-            headerToolbar={{ start: "title", center: "", end: "today prev,next" }}
-          />
+      {showList ? (
+        <AgendaList
+          deadlines={deadlines!}
+          courseColors={courseColors}
+          today={today}
+          onOpen={setSelectedDeadline}
+          onToggleDone={toggleDone}
+          onShowWeek={showWeek}
+        />
+      ) : (
+        <div className={hasDeadlines && !isPhone ? "cal-layout" : undefined}>
+          <section ref={calendarPanel} className="panel cal-panel" aria-label="Month">
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[themePlugin, dayGridPlugin, interactionPlugin]}
+              firstDay={WEEK_START}
+              initialView="dayGridMonth"
+              initialDate={isPhone ? gridDate : undefined}
+              // Phones: tapping a day lists its deadlines under the grid (the bars are too small to aim at)
+              dateClick={isPhone ? (info) => setPickedDay(toISO(info.date)) : undefined}
+              events={events}
+              fixedWeekCount={false}
+              height="auto"
+              borderless
+              eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
+              eventClass="cal-event"
+              dayCellClass={(arg) => {
+                const date = toISO(arg.date);
+                return [
+                  arg.isToday && "cal-today",
+                  inHellWeek(date) && "cal-hell",
+                  date === hoveredDate && "cal-hover",
+                  isPhone && date === pickedDay && "cal-picked",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+              }}
+              eventContent={(info) => {
+                const deadline: Deadline = info.event.extendedProps.deadline;
+                // A tinted bar in the course color; done ones are grey and crossed out (.ev-pill in index.css)
+                return (
+                  <span className={`ev-pill${deadline.done ? " is-done" : ""}`} style={courseVar(courseColors[deadline.course])}>
+                    <span className="ev-text">{info.event.title}</span>
+                  </span>
+                );
+              }}
+              headerToolbar={{ start: "title", center: "", end: "today prev,next" }}
+            />
+          </section>
+          {hasDeadlines && !isPhone && (
+            <CalendarSidebar
+              deadlines={deadlines}
+              courseColors={courseColors}
+              today={today}
+              onOpen={setSelectedDeadline}
+              onToggleDone={toggleDone}
+              onHoverDate={setHoveredDate}
+              onShowWeek={showWeek}
+            />
+          )}
+        </div>
+      )}
+      {isPhone && view === "month" && hasDeadlines && (
+        <section className="ag-sec mt-4" aria-labelledby="picked-day">
+          <h2 id="picked-day" className="ag-h">
+            {pickedDay === today ? `Today · ${longDate(pickedDay)}` : longDate(pickedDay)}
+          </h2>
+          {pickedDeadlines.length === 0 ? (
+            <p className="ag-calm muted">Nothing due this day. Tap another day to see what's due.</p>
+          ) : (
+            <ul className="ag-list">
+              {pickedDeadlines.map((d) => (
+                <AgendaRow
+                  key={d.id ?? `${d.course}-${d.title}`}
+                  deadline={d}
+                  color={courseColors[d.course]}
+                  onOpen={setSelectedDeadline}
+                  onToggleDone={toggleDone}
+                />
+              ))}
+            </ul>
+          )}
         </section>
-        {deadlines && deadlines.length > 0 && (
-          <CalendarSidebar
-            deadlines={deadlines}
-            courseColors={courseColors}
-            today={today}
-            onOpen={setSelectedDeadline}
-            onToggleDone={toggleDone}
-            onHoverDate={setHoveredDate}
-            onShowWeek={showWeek}
-          />
-        )}
-      </div>
+      )}
       {selectedDeadline?.id && (
         <DeadlineModal
           // A fresh popup for each deadline, so its edits start from that deadline
