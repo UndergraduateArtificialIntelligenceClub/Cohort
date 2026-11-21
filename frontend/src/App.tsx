@@ -3,9 +3,11 @@ import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
+import { useUnreadCount } from "./lib/useUnreadCount";
+import AccountMenu from "./components/AccountMenu";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
-import { IconLogout, Logo } from "./components/Icons";
-import { InstallButton, IosInstallTip } from "./components/InstallPrompt";
+import { IconCalendar, IconLogout, IconUpload, IconUsers, Logo } from "./components/Icons";
+import { InstallButton } from "./components/InstallPrompt";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import StudyBuddy from "./pages/StudyBuddy";
@@ -13,17 +15,19 @@ import Upload from "./pages/Upload";
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
 // Popups (like the review step after upload) live in src/components.
-// Add new pages here and in the nav below.
+// Add new pages here and in the routes below. Phones show them as bottom tabs with these icons.
 const links = [
-  { to: "/", label: "Calendar" },
-  { to: "/upload", label: "Upload" },
-  { to: "/study-buddy", label: "Study buddy" },
+  { to: "/", label: "Calendar", icon: IconCalendar },
+  { to: "/upload", label: "Upload", icon: IconUpload },
+  { to: "/study-buddy", label: "Study buddy", icon: IconUsers },
 ];
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   // True until Supabase tells us whether someone is already logged in (skipped when there are no keys)
   const [checking, setChecking] = useState(supabaseConfigured);
+  // Unread study buddy chats (#67), shown on the Study buddy tab
+  const unread = useUnreadCount();
 
   // On page load: are we already logged in? Then keep listening for login/logout
   useEffect(() => {
@@ -64,36 +68,48 @@ function App() {
             {links.map((link) => (
               <NavLink key={link.to} to={link.to} end className="tab">
                 {link.label}
-                {/* Unread study buddy chats (#67) */}
-                {link.to === "/study-buddy" && <StudyBuddyBadge />}
+                {link.to === "/study-buddy" && <StudyBuddyBadge count={unread} />}
               </NavLink>
             ))}
           </div>
           {session && (
             <div className="nav-right">
+              {/* Desktop: email, install and log out inline. Phones: all three live in the account menu. */}
               <span className="nav-email" title={session.user.email}>
                 {session.user.email}
               </span>
-              <InstallButton />
-              {/* "local" logs out this browser even if the network request fails */}
-              <button
-                type="button"
-                onClick={() => supabase.auth.signOut({ scope: "local" })}
-                className="btn btn-quiet btn-sm"
-              >
-                <IconLogout />
-                Log out
-              </button>
+              <span className="nav-desktop">
+                <InstallButton />
+                {/* "local" logs out this browser even if the network request fails */}
+                <button
+                  type="button"
+                  onClick={() => supabase.auth.signOut({ scope: "local" })}
+                  className="btn btn-quiet btn-sm"
+                >
+                  <IconLogout />
+                  Log out
+                </button>
+              </span>
+              <AccountMenu email={session.user.email} />
             </div>
           )}
         </nav>
       </header>
+      {/* Phones: the pages as tabs along the bottom, where thumbs reach (hidden on desktop in index.css) */}
+      <nav className="bottom-tabs" aria-label="Pages">
+        {links.map(({ to, label, icon: Icon }) => (
+          <NavLink key={to} to={to} end className="btab">
+            <Icon size={22} />
+            {label}
+            {to === "/study-buddy" && <StudyBuddyBadge count={unread} />}
+          </NavLink>
+        ))}
+      </nav>
       <Routes>
         <Route path="/" element={<Calendar />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/study-buddy" element={<StudyBuddy />} />
       </Routes>
-      <IosInstallTip />
     </BrowserRouter>
   );
 }

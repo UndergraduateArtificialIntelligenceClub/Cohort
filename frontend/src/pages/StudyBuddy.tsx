@@ -27,7 +27,9 @@ import {
   type StudyRequest,
 } from "../lib/studyBuddy";
 import { supabase, supabaseConfigured } from "../lib/supabase";
-import { IconSend, IconUsers, IconX } from "../components/Icons";
+import { useIsPhone } from "../lib/useIsPhone";
+import Sheet from "../components/Sheet";
+import { IconChevronLeft, IconMore, IconSend, IconUsers, IconX } from "../components/Icons";
 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
@@ -54,6 +56,8 @@ function StudyBuddy() {
   const [busyCourse, setBusyCourse] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  // Phones: the course list fills the page, and an open chat covers the whole screen like a messaging app
+  const isPhone = useIsPhone();
 
   // Reload my requests and matches from Supabase
   const refresh = useCallback(
@@ -248,38 +252,59 @@ function StudyBuddy() {
           </ul>
         </section>
 
-        <section aria-label="Chat" className="panel flex h-[min(640px,75vh)] min-h-[28rem] flex-col">
-          {openMatch && me && openIsActive ? (
-            // A fresh chat for each match, so messages and drafts don't carry over
-            <Chat key={openMatch.id} match={openMatch} me={me} onLeave={leaveChat} />
-          ) : openMatch && me ? (
-            <div className="m-auto flex max-w-sm flex-col items-center gap-3 p-6 text-center">
-              <p className="muted">
+        {!isPhone && (
+          <section aria-label="Chat" className="panel flex h-[min(640px,75vh)] min-h-[28rem] flex-col">
+            {openMatch && me && openIsActive ? (
+              // A fresh chat for each match, so messages and drafts don't carry over
+              <Chat key={openMatch.id} match={openMatch} me={me} onLeave={leaveChat} />
+            ) : openMatch && me ? (
+              <div className="m-auto flex max-w-sm flex-col items-center gap-3 p-6 text-center">
+                <p className="muted">
+                  Your chat with {partnerName(openMatch, me)} in {openMatch.course} has ended.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setOpenMatch(null)}
+                  className="btn btn-sm"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="m-auto flex max-w-sm flex-col items-center p-6 text-center">
+                <span className="icon-tile">
+                  <IconUsers />
+                </span>
+                <h2 className="section-title">{matches.length ? "Pick a buddy" : "No buddies yet"}</h2>
+                <p className="muted mt-1">
+                  {matches.length
+                    ? "Choose Chat on one of your courses to open the conversation."
+                    : "Choose Find a buddy on a course. If no one is waiting, you'll be paired with the next classmate who joins."}
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      {isPhone && openMatch && me && (
+        <section aria-label="Chat" className="chat-screen">
+          {openIsActive ? (
+            <Chat key={openMatch.id} match={openMatch} me={me} onLeave={leaveChat} onBack={() => setOpenMatch(null)} />
+          ) : (
+            <>
+              <div className="chat-top">
+                <button type="button" className="icon-btn" aria-label="Back to your courses" onClick={() => setOpenMatch(null)}>
+                  <IconChevronLeft size={22} />
+                </button>
+              </div>
+              <p className="muted m-auto max-w-xs p-6 text-center">
                 Your chat with {partnerName(openMatch, me)} in {openMatch.course} has ended.
               </p>
-              <button
-                type="button"
-                onClick={() => setOpenMatch(null)}
-                className="btn btn-sm"
-              >
-                Close
-              </button>
-            </div>
-          ) : (
-            <div className="m-auto flex max-w-sm flex-col items-center p-6 text-center">
-              <span className="icon-tile">
-                <IconUsers />
-              </span>
-              <h2 className="section-title">{matches.length ? "Pick a buddy" : "No buddies yet"}</h2>
-              <p className="muted mt-1">
-                {matches.length
-                  ? "Choose Chat on one of your courses to open the conversation."
-                  : "Choose Find a buddy on a course. If no one is waiting, you'll be paired with the next classmate who joins."}
-              </p>
-            </div>
+            </>
           )}
         </section>
-      </div>
+      )}
     </main>
   );
 }
@@ -288,15 +313,18 @@ type ChatProps = {
   match: StudyMatch;
   me: string;
   onLeave: (notice: string) => void;
+  // Phones only: back to the course list. Also swaps the header buttons for a ⋮ menu.
+  onBack?: () => void;
 };
 
-function Chat({ match, me, onLeave }: ChatProps) {
+function Chat({ match, me, onLeave, onBack }: ChatProps) {
   const [messages, setMessages] = useState<StudyMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const name = partnerName(match, me);
 
@@ -383,36 +411,100 @@ function Chat({ match, me, onLeave }: ChatProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-1 border-b border-border px-4 py-3">
-        <div className="row-text">
-          <p className="row-title">{name}</p>
-          <p className="row-meta">{match.course}</p>
+      {onBack ? (
+        <div className="chat-top">
+          <button type="button" className="icon-btn" aria-label="Back to your courses" onClick={onBack}>
+            <IconChevronLeft size={22} />
+          </button>
+          <div className="row-text">
+            <p className="row-title">{name}</p>
+            <p className="row-meta">{match.course}</p>
+          </div>
+          <button type="button" className="icon-btn" aria-label="Chat options" disabled={busy} onClick={() => setMenuOpen(true)}>
+            <IconMore size={22} />
+          </button>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={confirmUnmatch}
-          className="btn btn-quiet btn-sm"
-        >
-          Unmatch
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={confirmBlock}
-          className="btn btn-quiet btn-sm btn-danger-text"
-        >
-          Block
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setReporting(!reporting)}
-          className="btn btn-quiet btn-sm btn-danger-text"
-        >
-          Report
-        </button>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1 border-b border-border px-4 py-3">
+          <div className="row-text">
+            <p className="row-title">{name}</p>
+            <p className="row-meta">{match.course}</p>
+          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={confirmUnmatch}
+            className="btn btn-quiet btn-sm"
+          >
+            Unmatch
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={confirmBlock}
+            className="btn btn-quiet btn-sm btn-danger-text"
+          >
+            Block
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setReporting(!reporting)}
+            className="btn btn-quiet btn-sm btn-danger-text"
+          >
+            Report
+          </button>
+        </div>
+      )}
+
+      {menuOpen && (
+        <Sheet title={`Chat with ${name}`} showTitle={false} onClose={() => setMenuOpen(false)}>
+          <ul className="sheet-list">
+            <li>
+              <button
+                type="button"
+                className="sheet-item sheet-item-2"
+                onClick={() => {
+                  setMenuOpen(false);
+                  confirmUnmatch();
+                }}
+              >
+                Unmatch
+                <small>End the chat. You won't be paired again in {match.course}.</small>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className="sheet-item sheet-item-2 text-danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  confirmBlock();
+                }}
+              >
+                Block {name}
+                <small>You'll never be paired with them again, in any course.</small>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className="sheet-item sheet-item-2 text-danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setReporting(true);
+                }}
+              >
+                Report {name}
+                <small>Goes to the Cohort team with a copy of this chat. Also blocks them.</small>
+              </button>
+            </li>
+          </ul>
+          <button type="button" className="btn btn-lg btn-block mt-3" onClick={() => setMenuOpen(false)}>
+            Cancel
+          </button>
+        </Sheet>
+      )}
 
       {reporting && (
         <form onSubmit={sendReport} className="flex flex-col gap-2 border-b border-border bg-danger-subtle px-4 py-3">

@@ -139,6 +139,13 @@
   }
 }
 
+/* Phones: popups slide up from the bottom */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
 /* Login demo (components/LoginDemo.tsx): a deadline mark pops onto the calendar */
 @keyframes login-pop {
   0% {
@@ -630,31 +637,401 @@
     text-align: center;
   }
 
-  /* "Add to Home Screen" tip on iPhone/iPad Safari, pinned to the bottom */
-  .install-tip {
-    position: fixed;
-    right: var(--space-3);
-    bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
-    left: var(--space-3);
-    z-index: 30;
+  /* Phone-only parts of the shell; the "Phones" rules at the end of this file turn them on */
+  .nav-desktop {
+    display: contents;
+  }
+
+  .nav-account,
+  .bottom-tabs {
+    display: none;
+  }
+
+  .btn-lg {
+    height: 44px;
+    padding: 0 var(--space-4);
+    font-size: 15px;
+  }
+
+  /* Two-way switch, e.g. List / Month on the calendar */
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--subtle);
+  }
+
+  .seg button {
+    height: 36px;
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--ink-2);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .seg button[aria-pressed="true"] {
+    background: var(--surface);
+    box-shadow: 0 1px 2px rgba(28, 26, 23, 0.12);
+    color: var(--ink);
+  }
+
+  /* Menus in a sheet (components/Sheet.tsx): the account menu, chat options */
+  .sheet-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .sheet-item {
+    display: flex;
     align-items: center;
-    max-width: 480px;
-    margin: 0 auto;
-    box-shadow: var(--shadow-float);
-    animation: rise-in var(--duration) var(--ease);
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 56px;
+    padding: var(--space-2) 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+    background: none;
+    color: var(--ink);
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
   }
 
-  .install-tip-spacer {
-    height: calc(96px + env(safe-area-inset-bottom));
+  .sheet-list li:first-child .sheet-item {
+    border-top: 0;
   }
 
-  .install-tip-text {
+  /* Label with a line of explanation under it */
+  .sheet-item-2 {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .sheet-item small {
+    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  /* Numbered steps (Add to Home Screen) */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 var(--space-5);
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+
+  .steps li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    counter-increment: step;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+
+  /* ---------- Calendar list on phones (components/AgendaList.tsx) ---------- */
+  .agenda {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .ag-sec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .ag-h {
+    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .ag-list {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    list-style: none;
+  }
+
+  .ag-row,
+  .ag-ask {
+    display: flex;
+    align-items: center;
+    min-height: 60px;
+  }
+
+  .ag-row + .ag-row,
+  .ag-ask + .ag-ask {
+    border-top: 1px solid var(--border);
+  }
+
+  /* The whole left edge is the tap target; the circle inside is what you see */
+  .ag-tick {
+    display: flex;
+    flex: none;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .ag-tick > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--border-hover);
+    border-radius: 50%;
+    color: var(--surface);
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+
+  .ag-row.is-done .ag-tick > span {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .ag-main {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    min-height: 56px;
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
   }
 
-  .install-tip-share {
-    display: inline;
-    vertical-align: -2px;
+  .ag-title {
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ag-row.is-done .ag-title {
+    color: var(--ink-3);
+    text-decoration: line-through;
+  }
+
+  .ag-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+
+  .ag-ask {
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  .ag-ask .ag-main {
+    padding-left: var(--space-4);
+  }
+
+  .ag-hero {
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--c) 6%, var(--surface));
+    box-shadow: inset 4px 0 0 var(--c), var(--shadow-sm);
+  }
+
+  .ag-hero-title {
+    display: block;
+    margin-top: var(--space-1);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: 600 24px / 1.2 var(--font-heading);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .ag-hero-when {
+    margin-top: 6px;
+    color: var(--ink-2);
+    font-size: var(--text-md);
+  }
+
+  .ag-hero-when strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .ag-hero-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  .ag-calm {
+    padding: var(--space-4);
+    border: 1px dashed var(--border-strong);
+    border-radius: 12px;
+  }
+
+  .ag-hell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--warn) 25%, transparent);
+    border-radius: 14px;
+    background: var(--warn-subtle);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .ag-hell-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    font-size: var(--text-md);
+  }
+
+  .ag-hell-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .ag-hell .hell-tag {
+    padding: 1px var(--space-2);
+    border-radius: var(--radius);
+    background: var(--warn);
+    color: var(--surface);
+    font-size: var(--text-sm);
+  }
+
+  /* ---------- Upload on phones ---------- */
+  .shared-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .shared-toggle:disabled {
+    cursor: default;
+  }
+
+  .shared-toggle[aria-expanded="true"] {
+    margin-bottom: var(--space-3);
+  }
+
+  .paste-open {
+    justify-self: center;
+    height: 44px;
+    padding: 0 var(--space-3);
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  /* Find deadlines, pinned just above the bottom tabs */
+  .phone-bar {
+    position: sticky;
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-4) calc(-1 * var(--space-4)) 0;
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+
+  .phone-bar .btn-primary {
+    flex: 1;
+    height: 48px;
+    font-size: 16px;
+  }
+
+  /* ---------- Study buddy chat on phones: covers the whole screen ---------- */
+  .chat-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    background: var(--bg);
+    animation: fade-in var(--duration) var(--ease);
+  }
+
+  .chat-screen > form:last-child {
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
+
+  .chat-top {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 56px;
+    padding: 0 var(--space-1);
+    border-bottom: 1px solid var(--border);
   }
 
   /* ---------- Empty state ---------- */
@@ -1322,23 +1699,80 @@
     padding: var(--space-5) var(--space-4) var(--space-6);
   }
 
-  /* Tabs move to their own scrolling row under the brand */
+  /* ----- Shell: slim top bar, pages as tabs along the bottom ----- */
+  :root {
+    --tabbar-h: 56px;
+  }
+
+  .nav-wrap {
+    padding-top: env(safe-area-inset-top);
+  }
+
   .nav {
-    flex-wrap: wrap;
-    height: auto;
-    row-gap: 0;
-    padding: var(--space-2) var(--space-4) 0;
+    height: 52px;
+    padding: 0 var(--space-2) 0 var(--space-4);
   }
 
-  .tabs {
-    order: 3;
-    width: 100%;
-    height: 40px;
-    overflow-x: auto;
-  }
-
-  .nav-email {
+  .nav .tabs,
+  .nav-email,
+  .nav-desktop {
     display: none;
+  }
+
+  .nav-account {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+  }
+
+  .bottom-tabs {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0 var(--space-2) env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+
+  .btab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: var(--tabbar-h);
+    color: var(--ink-2);
+    font-size: 11px;
+    font-weight: 500;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btab.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .btab .count-badge {
+    position: absolute;
+    top: 4px;
+    left: calc(50% + 6px);
+  }
+
+  /* Room at the bottom so the tabs never cover the end of a page */
+  .page {
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--space-6));
+  }
+
+  .page-head {
+    align-items: center;
   }
 
   .add-grid,
@@ -1365,17 +1799,49 @@
     padding: var(--space-3);
   }
 
+  /* ----- Every popup becomes a bottom sheet, buttons in thumb reach ----- */
   .overlay {
-    padding-top: var(--space-4);
+    align-items: flex-end;
+    padding: 0;
   }
 
   .modal {
-    padding: var(--space-4);
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 16px 16px 0 0;
+    animation: sheet-up 220ms var(--ease);
   }
 
+  /* Grab handle */
+  .modal::before {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 5px;
+    margin: 0 auto var(--space-3);
+    border-radius: 3px;
+    background: var(--border-strong);
+  }
+
+  /* Action buttons stay visible at the bottom while a long sheet scrolls */
   .modal-actions {
-    margin: var(--space-4) calc(-1 * var(--space-4)) calc(-1 * var(--space-4));
-    padding: var(--space-3) var(--space-4);
+    position: sticky;
+    bottom: calc(-1 * (var(--space-4) + env(safe-area-inset-bottom)));
+    margin: var(--space-4) calc(-1 * var(--space-4)) calc(-1 * (var(--space-4) + env(safe-area-inset-bottom)));
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-radius: 0;
+  }
+
+  .modal-actions > .flex-1 {
+    display: none;
+  }
+
+  .modal-actions .btn {
+    flex: 1 1 auto;
+    height: 44px;
   }
 }
 
@@ -1541,6 +2007,10 @@ html:root {
 }
 .cal-hover {
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* Phones: the day whose deadlines are listed under the grid */
+.cal-picked {
+  box-shadow: inset 0 0 0 2px var(--ink);
 }
 
 /* Phones: day cells are too narrow for titles, so events become tappable color bars */
