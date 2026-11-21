@@ -9,7 +9,7 @@ import {
   type MistakeReport,
   type SharedSyllabus,
 } from "../lib/library";
-import { IconSearch } from "./Icons";
+import { IconPlus, IconSearch, IconTrash } from "./Icons";
 
 // Course library search on the upload page: issue #66
 // Find a syllabus a classmate already parsed and review its deadlines instead of uploading your own.
@@ -95,25 +95,27 @@ function SharedLibrary({ disabled, onUse }: Props) {
   if (results.length === 0 && !query && !error) return null;
 
   return (
-    <section aria-labelledby="library-heading" className="panel mb-4 flex flex-col gap-3 p-4">
-      <div>
-        <h2 id="library-heading" className="section-title">
-          Find your course
-        </h2>
-        <p className="muted">
-          If a classmate already added your course, use their deadlines and review them before saving.
-        </p>
+    <section aria-labelledby="library-heading" className="panel shared">
+      <div className="section-head">
+        <div>
+          <h2 id="library-heading" className="section-title">
+            Shared by classmates
+          </h2>
+          <p className="muted">
+            If a classmate already added your course, use their deadlines and review them before saving.
+          </p>
+        </div>
       </div>
 
-      <div className="relative">
-        <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
+      <div className="input-wrap">
+        <IconSearch />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Course or instructor, e.g. CMPUT 174"
           aria-label="Search the course library"
-          className="input pl-8"
+          className="input has-icon"
         />
       </div>
 
@@ -132,7 +134,7 @@ function SharedLibrary({ disabled, onUse }: Props) {
           // Reports from classmates on your own entry
           const onMine = mine ? reports.filter((r) => r.syllabus_id === s.id) : [];
           return (
-            <li key={s.id} className="row flex-col items-stretch">
+            <li key={s.id} className="row shared-row flex-col items-stretch">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="row-text">
                   <p className="row-title">
@@ -151,9 +153,11 @@ function SharedLibrary({ disabled, onUse }: Props) {
                     type="button"
                     disabled={busy}
                     onClick={() => act(() => stopSharing(s.id))}
-                    className="btn btn-quiet btn-sm btn-danger-text"
+                    className="icon-btn"
+                    aria-label={`Stop sharing ${s.course}`}
+                    title="Stop sharing"
                   >
-                    Stop sharing
+                    <IconTrash />
                   </button>
                 ) : (
                   <button
@@ -172,9 +176,9 @@ function SharedLibrary({ disabled, onUse }: Props) {
                   type="button"
                   disabled={disabled || busy}
                   onClick={() => onUse(s)}
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-sm"
                 >
-                  Use
+                  <IconPlus size={14} /> Use
                 </button>
               </div>
 

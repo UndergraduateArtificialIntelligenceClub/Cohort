@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import ReviewPopup from "../components/ReviewPopup";
 import SharedLibrary from "../components/SharedLibrary";
-import { IconUpload } from "../components/Icons";
+import { IconAlert, IconArrowRight, IconUpload } from "../components/Icons";
 import { API } from "../lib/config";
 import { saveDeadlines } from "../lib/deadlines";
 import { markUsed, shareDeadlines, type SharedSyllabus } from "../lib/library";
@@ -13,6 +13,8 @@ import { authHeaders } from "../lib/supabase";
 function Upload() {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File|null>(null);
+  // A file is being dragged over the drop area (only changes how it looks)
+  const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState<Deadline[] | null>(null);
@@ -112,12 +114,13 @@ function Upload() {
   }
 
   return (
-    <main className="page">
+    <main className="page add-page">
       <div className="page-head">
         <div>
           <h1 className="page-title">Upload</h1>
           <p className="page-sub">
-            Add a syllabus as a PDF or pasted text. You'll check each deadline before it's saved.
+            Upload a PDF or paste the text. Assignments, labs, quizzes and exams are pulled out, and you review each one
+            before it's saved to your calendar.
           </p>
         </div>
       </div>
@@ -134,78 +137,117 @@ function Upload() {
 
       <div className="add-grid">
         <label
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
           onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {e.preventDefault(); pickFile(e.dataTransfer.files[0]);}}
-          className="dropzone"
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            pickFile(e.dataTransfer.files[0]);
+          }}
+          className={`panel dropzone${dragging ? " is-drag" : ""}`}
         >
+          <input
+            type="file"
+            accept="application/pdf"
+            className="sr-only"
+            onChange={(e) => pickFile(e.target.files?.[0])}
+          />
           <span className="icon-tile">
             <IconUpload />
           </span>
-          <span className="font-semibold">{file ? file.name : "Drop a PDF here"}</span>
-          <span className="muted">
-            {file ? "Click to choose a different file" : <>or <span className="link">click to browse</span></>}
+          <span className="dz-title">{dragging ? "Drop to upload" : file ? file.name : "Upload a PDF"}</span>
+          {/* Phones and tablets can't drag files in, so they get "Tap to..." instead (see .dz-touch in index.css) */}
+          <span className="muted dz-pointer">
+            {file ? "Drag another here or " : "Drag it here or "}
+            <span className="dz-link">{file ? "choose a different file" : "choose a file"}</span>
           </span>
-          <input
-            type = "file"
-            accept = "application/pdf"
-            className = "sr-only"
-            onChange = {(e) => pickFile(e.target.files?.[0])}
-            />
+          <span className="muted dz-touch">
+            Tap to <span className="dz-link">{file ? "choose a different PDF" : "choose a PDF"}</span>
+          </span>
+          <span className="dz-hint muted">The PDF needs selectable text. Scanned pages won't work.</span>
         </label>
 
-        <div className="panel flex flex-col p-4">
-          <label htmlFor="syllabus-text" className="field-label mb-1">
-            Or paste the text
-          </label>
+        <div className="panel paste">
+          <div className="section-head">
+            <label className="section-title" htmlFor="syllabus-text">
+              Paste text
+            </label>
+            <span className="muted tabular">{text.length.toLocaleString()} characters</span>
+          </div>
           <textarea
             id="syllabus-text"
-            value = {text}
+            value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder = "Paste your syllabus text here..."
-            className = "input min-h-44 flex-1"
+            placeholder="Paste the schedule or assignment list from your syllabus"
+            rows={9}
+            className="input paste-area"
           />
+          <div className="paste-foot">
+            {saving && (
+              <span className="muted paste-status">
+                <span className="spinner" /> Saving deadlines
+              </span>
+            )}
+            {unsaved && !saving && (
+              <button type="button" onClick={() => save(unsaved)} className="btn">
+                Try saving again
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading || saving || (!text.trim() && !file)}
+              className="btn btn-primary"
+            >
+              {loading ? (
+                <>
+                  <span className="spinner" /> Finding deadlines
+                </>
+              ) : (
+                <>
+                  Find deadlines <IconArrowRight />
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
 
-      <label className="mt-5 flex cursor-pointer items-start gap-3 border-t border-border py-3">
-        <input
-          type="checkbox"
-          className="checkbox mt-0.5"
-          checked={share}
-          onChange={(e) => setShare(e.target.checked)}
-        />
-        <span>
-          <span className="block font-medium">Share with classmates</span>
-          <span className="muted block text-xs">
-            Add the deadlines you confirm to the course library. Your name and email are never shown.
-          </span>
-        </span>
-      </label>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={handleSubmit}
-          disabled={loading || saving || (!text.trim() && !file)}
-          className="btn btn-primary"
-        >
-          {loading && <span className="spinner" />}
-          {loading ? "Parsing..." : "Parse syllabus"}
-        </button>
-
-        {saving && (
-          <span className="muted inline-flex items-center gap-2">
-            <span className="spinner" /> Saving deadlines...
-          </span>
-        )}
-
-        {unsaved && !saving && (
-          <button onClick={() => save(unsaved)} className="btn">
-            Try saving again
-          </button>
+        {loading && (
+          <div className="busy-overlay" role="status" aria-live="polite">
+            <span className="spinner" />
+            <div>
+              <p className="section-title">Reading your syllabus</p>
+              <p className="muted">Finding assignments, labs, quizzes and exams. Long syllabi take longer.</p>
+            </div>
+          </div>
         )}
       </div>
 
-      {error && <p className="notice notice-error mt-4">{error}</p>}
+      {error && (
+        <div className="notice notice-error" role="alert">
+          <IconAlert />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <fieldset className="options">
+        <legend className="section-title">Options</legend>
+        <label className="option">
+          <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
+          <span>
+            <span className="option-label">Share with classmates</span>
+            <span className="muted">
+              Add the deadlines you confirm to the course library. Your name and email are never shown.
+            </span>
+          </span>
+        </label>
+      </fieldset>
 
       {pending && (
         <ReviewPopup
