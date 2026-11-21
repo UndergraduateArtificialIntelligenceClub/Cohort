@@ -9,6 +9,7 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import AgendaList, { AgendaRow } from "../components/AgendaList";
 import CalendarSidebar from "../components/CalendarSidebar";
 import DeadlineModal from "../components/DeadlineModal";
+import NotificationPrompt from "../components/NotificationPrompt";
 import { addDays, longDate, makeForecast, todayISO, toISO, WEEK_START } from "../lib/planner";
 import { useIsPhone } from "../lib/useIsPhone";
 
@@ -140,6 +141,13 @@ function Calendar() {
       </div>
       {error && <p className="notice notice-error mb-4">{error}</p>}
       {!deadlines && !error && <p className="muted mb-4">Loading deadlines...</p>}
+      {deadlines?.some((d) => !d.done && d.date >= today) && (
+        <NotificationPrompt
+          id="deadlines"
+          title="Want a reminder before things are due?"
+          text="Cohort can remind you the evening before each deadline, and 3 days before exams and anything worth 15% or more."
+        />
+      )}
       {deadlines?.length === 0 && (
         <div className="empty mb-4">
           <h2 className="modal-title">No deadlines yet</h2>

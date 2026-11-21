@@ -3,10 +3,11 @@
 // The rules (who can match, what a match sees, block and report) live in
 // supabase/migrations/20261119120000_study_buddy.sql. Calls to Supabase are in lib/studyBuddy.ts.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { normalizeCourse } from "../lib/courses";
 import { loadDeadlines } from "../lib/deadlines";
 import { todayISO } from "../lib/library";
+import { closeNotifications } from "../lib/notifications";
 import {
   MAX_MESSAGE,
   MAX_REPORT,
@@ -28,6 +29,7 @@ import {
 } from "../lib/studyBuddy";
 import { supabase, supabaseConfigured } from "../lib/supabase";
 import { useIsPhone } from "../lib/useIsPhone";
+import NotificationPrompt from "../components/NotificationPrompt";
 import Sheet from "../components/Sheet";
 import { IconChevronLeft, IconMore, IconSend, IconUsers, IconX } from "../components/Icons";
 
@@ -58,6 +60,9 @@ function StudyBuddy() {
   const [error, setError] = useState("");
   // Phones: the course list fills the page, and an open chat covers the whole screen like a messaging app
   const isPhone = useIsPhone();
+  // Tapping a study buddy notification opens /study-buddy?chat=<match id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedChat = searchParams.get("chat");
 
   // Reload my requests and matches from Supabase
   const refresh = useCallback(
@@ -106,6 +111,28 @@ function StudyBuddy() {
       supabase.removeChannel(channel);
     };
   }, [me, refresh]);
+
+  // Open the chat a notification pointed to, then tidy the address bar.
+  // Loads the matches fresh, since a brand new match may not be in the list yet.
+  useEffect(() => {
+    if (!supabaseConfigured || !linkedChat || !me) return;
+    let active = true;
+    loadMatches()
+      .then((newMatches) => {
+        if (!active) return;
+        setMatches(newMatches);
+        const match = newMatches.find((m) => String(m.id) === linkedChat);
+        if (match) {
+          setOpenMatch(match);
+          setNotice("");
+        }
+        setSearchParams({}, { replace: true });
+      })
+      .catch((e) => setError(errorText(e, "Couldn't open that chat.")));
+    return () => {
+      active = false;
+    };
+  }, [linkedChat, me, setSearchParams]);
 
   if (!supabaseConfigured) {
     return (
@@ -177,6 +204,13 @@ function StudyBuddy() {
 
       {error && <p className="notice notice-error mb-4">{error}</p>}
       {notice && <p className="notice notice-info mb-4">{notice}</p>}
+      {requests.length > 0 && (
+        <NotificationPrompt
+          id="study-buddy"
+          title="Want to know when you're matched?"
+          text="Cohort can tell you as soon as a classmate pairs with you, and when your buddy sends a message."
+        />
+      )}
 
       <div className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <section aria-labelledby="buddy-courses" className="panel p-4">
@@ -343,6 +377,8 @@ function Chat({ match, me, onLeave, onBack }: ChatProps) {
       .then(merge)
       .catch((e) => setError(errorText(e, "Couldn't load messages.")));
     markRead(match.id).catch(console.error);
+    // Its notification is old news now
+    closeNotifications(`chat-${match.id}`).catch(console.error);
     const channel = supabase
       .channel(`study-chat-${match.id}`)
       .on(
