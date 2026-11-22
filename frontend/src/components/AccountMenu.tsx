@@ -5,11 +5,12 @@ import { IconBell, IconLogout, IconPhone, IconUserCircle } from "./Icons";
 import InstallSteps from "./InstallSteps";
 import NotificationSettings from "./NotificationSettings";
 import Sheet from "./Sheet";
+import DeleteAccount from "./DeleteAccount";
 
 // Phones only (hidden on desktop by .nav-account in index.css): the account button in the top bar.
 // Holds what the desktop nav shows inline: your email, notifications, installing Cohort, and logging out.
 function AccountMenu({ email }: { email: string | undefined }) {
-  const [open, setOpen] = useState<"menu" | "steps" | "notifications" | null>(null);
+  const [open, setOpen] = useState<"menu" | "steps" | "notifications" | "delete" | null>(null);
   const installDialog = useInstallDialog();
   const close = () => setOpen(null);
 
@@ -55,12 +56,17 @@ function AccountMenu({ email }: { email: string | undefined }) {
                 Log out
               </button>
             </li>
+            <li>
+              <button type="button" className="sheet-item" onClick={() => setOpen("delete")}>
+                Delete account
+              </button>
+            </li>
           </ul>
         </Sheet>
       )}
 
       {open === "notifications" && <NotificationSettings onClose={close} />}
-
+      {open === "delete" && <DeleteAccount onClose={close} />}
       {open === "steps" && <InstallSteps onClose={close} />}
     </>
   );

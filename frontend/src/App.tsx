@@ -15,6 +15,7 @@ import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import StudyBuddy from "./pages/StudyBuddy";
 import Upload from "./pages/Upload";
+import DeleteAccount from "./components/DeleteAccount";
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
 // Popups (like the review step after upload) live in src/components.
@@ -33,6 +34,8 @@ function App() {
   const unread = useUnreadCount();
   // Desktop: the Notifications sheet, opened from the bell in the nav (phones open it from the account menu)
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  // Desktop: the delete account popup, opened from the nav (phones open it from the account menu) 
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   // On page load: are we already logged in? Then keep listening for login/logout
   useEffect(() => {
@@ -95,6 +98,9 @@ function App() {
                   <IconBell size={18} />
                 </button>
                 <InstallButton />
+                <button type="button" onClick={() => setShowDeleteAccount(true)} className="btn btn-quiet btn-sm">
+                  Delete account
+                </button>
                 <button type="button" onClick={logOut} className="btn btn-quiet btn-sm">
                   <IconLogout />
                   Log out
@@ -106,6 +112,7 @@ function App() {
         </nav>
       </header>
       {notificationsOpen && <NotificationSettings onClose={() => setNotificationsOpen(false)} />}
+      {showDeleteAccount && <DeleteAccount onClose={() => setShowDeleteAccount(false)} />}
       {/* Phones: the pages as tabs along the bottom, where thumbs reach (hidden on desktop in index.css) */}
       <nav className="bottom-tabs" aria-label="Pages">
         {links.map(({ to, label, icon: Icon }) => (
