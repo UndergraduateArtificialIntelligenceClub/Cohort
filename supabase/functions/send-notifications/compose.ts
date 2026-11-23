@@ -3,7 +3,7 @@
 // frontend/public/sw.js reads the same fields when the push arrives.
 
 export type DueDeadline = {
-  course: string;
+  course: string | null; // null for a personal item. Those only ever come in tomorrow, never heads_up
   title: string;
   date: string; // "YYYY-MM-DD"
   category: string;
@@ -40,7 +40,8 @@ export type PushPayload = {
 // How many deadlines a notification names before it says "and 2 more"
 const MAX_LISTED = 3;
 
-const name = (d: DueDeadline) => `${d.course} ${d.title}`;
+// "CMPUT 174 Assignment 2", or just "Dentist" for a personal item
+const name = (d: DueDeadline) => (d.course === null ? d.title : `${d.course} ${d.title}`);
 
 // "CMPUT 174 Assignment 2, STAT 151 Lab 3 and 2 more"
 function list(deadlines: DueDeadline[]): string {
@@ -58,10 +59,17 @@ function weekday(date: string): string {
 
 function deadlineMessage(tomorrow: DueDeadline[], headsUp: DueDeadline[]): { title: string; body: string } {
   if (tomorrow.length > 0) {
-    const title = tomorrow.length === 1 ? `Due tomorrow: ${name(tomorrow[0])}` : `${tomorrow.length} deadlines due tomorrow`;
+    // A dentist appointment isn't "due", so only say "due" and "deadlines" when it's all schoolwork
+    const allSchool = tomorrow.every((d) => d.course !== null);
+    const title =
+      tomorrow.length === 1
+        ? `${allSchool ? "Due tomorrow" : "Tomorrow"}: ${name(tomorrow[0])}`
+        : allSchool
+          ? `${tomorrow.length} deadlines due tomorrow`
+          : `${tomorrow.length} things tomorrow`;
     const parts = tomorrow.length === 1 ? [] : [`${list(tomorrow)}.`];
     if (headsUp.length > 0) parts.push(`Also coming up ${weekday(headsUp[0].date)}: ${list(headsUp)}.`);
-    if (parts.length === 0) parts.push("Open Cohort to check it off when it's done.");
+    if (parts.length === 0) parts.push(allSchool ? "Open Cohort to check it off when it's done." : "Open Cohort to see your calendar.");
     return { title, body: parts.join(" ") };
   }
   if (headsUp.length === 1) {

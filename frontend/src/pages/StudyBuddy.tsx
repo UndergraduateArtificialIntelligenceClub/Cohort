@@ -83,7 +83,8 @@ function StudyBuddy() {
     loadDeadlines()
       .then((deadlines) => {
         const today = todayISO();
-        const upcoming = deadlines.filter((d) => d.date >= today).map((d) => normalizeCourse(d.course));
+        // Personal items have no course, so they never count as being in one
+        const upcoming = deadlines.flatMap((d) => (d.date >= today && d.course !== null ? [normalizeCourse(d.course)] : []));
         setMyCourses([...new Set(upcoming)].filter(Boolean));
       })
       .catch((e) => {

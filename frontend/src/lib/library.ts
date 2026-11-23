@@ -94,6 +94,8 @@ export async function searchLibrary(query: string): Promise<SharedSyllabus[]> {
 export async function shareDeadlines(deadlines: Deadline[], instructor: string | null): Promise<void> {
   const byCourse = new Map<string, Deadline[]>();
   for (const d of deadlines) {
+    // Personal items have no course and never leave the user's own calendar
+    if (d.course === null) continue;
     const course = normalizeCourse(d.course);
     if (!course) continue;
     // Only the syllabus facts; never the user's own id or done status

@@ -1,7 +1,10 @@
 import type { Category, Deadline } from "../types";
+import { isPersonal } from "./courses";
 
 // The rules behind the calendar sidebar (components/CalendarSidebar.tsx): what's next, what's this week,
 // and which week coming up is the heaviest ("hell week"). No UI and no Supabase here, just plain functions.
+// Personal items (no course) show up in This week, but never in Next up, "Did you finish?" or the forecast:
+// those are about schoolwork.
 
 // ---------- Dates ----------
 // Deadlines are "YYYY-MM-DD" in the student's own time zone. Day maths runs on whole UTC days,
@@ -84,6 +87,7 @@ const GUESSED_WEIGHT: Record<Category, number> = {
 };
 
 export function weightOf(d: Deadline): { value: number; guessed: boolean } {
+  if (d.category === "personal") return { value: 0, guessed: false };
   if (d.weight != null) return { value: d.weight, guessed: false };
   return { value: GUESSED_WEIGHT[d.category], guessed: true };
 }
@@ -107,26 +111,27 @@ const soonestFirst = (a: Deadline, b: Deadline) =>
   a.date.localeCompare(b.date) || weightOf(b).value - weightOf(a).value;
 
 export type Plan = {
-  nextUp: Deadline | null; // soonest unfinished deadline in the next 5 days
-  later: Deadline | null; // when nothing is next up: the first unfinished one after that
-  thisWeek: Deadline[]; // unfinished, due in the next 7 days, not counting nextUp
+  nextUp: Deadline | null; // soonest unfinished school deadline in the next 5 days
+  later: Deadline | null; // when nothing is next up: the first unfinished school one after that
+  thisWeek: Deadline[]; // unfinished, due in the next 7 days, not counting nextUp. Personal items too
   doneThisWeek: Deadline[]; // finished ones due in the next 7 days
-  askFinished: Deadline[]; // unfinished, 1 to 3 days late, not dismissed yet
+  askFinished: Deadline[]; // unfinished school deadlines, 1 to 3 days late, not dismissed yet
 };
 
 export function makePlan(deadlines: Deadline[], today: string, dismissed: Set<string>): Plan {
   const sorted = [...deadlines].sort(soonestFirst);
   const open = sorted.filter((d) => !d.done && daysUntil(d.date, today) >= 0);
-  const nextUp = open.find((d) => daysUntil(d.date, today) < NEXT_UP_DAYS) ?? null;
+  const openSchool = open.filter((d) => !isPersonal(d));
+  const nextUp = openSchool.find((d) => daysUntil(d.date, today) < NEXT_UP_DAYS) ?? null;
   const inWeek = (d: Deadline) => daysUntil(d.date, today) < WEEK_DAYS;
   return {
     nextUp,
-    later: nextUp ? null : (open[0] ?? null),
+    later: nextUp ? null : (openSchool[0] ?? null),
     thisWeek: open.filter((d) => d !== nextUp && inWeek(d)),
     doneThisWeek: sorted.filter((d) => d.done && daysUntil(d.date, today) >= 0 && inWeek(d)),
     askFinished: sorted.filter((d) => {
       const late = -daysUntil(d.date, today);
-      return !d.done && late >= 1 && late <= ASK_DAYS && !(d.id && dismissed.has(d.id));
+      return !d.done && !isPersonal(d) && late >= 1 && late <= ASK_DAYS && !(d.id && dismissed.has(d.id));
     }),
   };
 }
@@ -152,9 +157,10 @@ export type Forecast = {
 };
 
 export function makeForecast(deadlines: Deadline[], today: string): Forecast {
-  // Every week of the student's term that has anything due, past ones too
+  // Every week of the student's term that has anything due, past ones too. Only schoolwork counts.
   const byWeek = new Map<string, Week>();
   for (const d of deadlines) {
+    if (isPersonal(d)) continue;
     const start = weekStart(d.date);
     const week = byWeek.get(start) ?? { start, load: 0, items: [] };
     week.load += weightOf(d).value;
@@ -183,7 +189,7 @@ export function makeForecast(deadlines: Deadline[], today: string): Forecast {
   return { weeks, busiest, hell, startEarly };
 }
 
-// How many different courses a set of deadlines covers
+// How many different courses a set of deadlines covers (personal items aren't a course)
 export function courseCount(deadlines: Deadline[]): number {
-  return new Set(deadlines.map((d) => d.course)).size;
+  return new Set(deadlines.flatMap((d) => (d.course === null ? [] : [d.course]))).size;
 }
