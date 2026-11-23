@@ -27,7 +27,9 @@ function DeleteAccount({ onClose }: { onClose: () => void }) {
       }
       await logOut();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
+      // fetch throws a TypeError ("Failed to fetch") when the server can't be reached at all
+      if (e instanceof TypeError) setError("Couldn't reach the server. Check your connection and try again.");
+      else setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
       setDeleting(false);
     }
   }
@@ -38,12 +40,12 @@ function DeleteAccount({ onClose }: { onClose: () => void }) {
         This deletes your account, your deadlines, the syllabi you've shared, and your study-buddy chats.
         This can't be undone.
       </p>
-      {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
+      {error && <p className="error-text mb-3">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn btn-quiet" onClick={onClose} disabled={deleting}>
           Cancel
         </button>
-        <button type="button" className="btn" onClick={handleDelete} disabled={deleting}>
+        <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
           {deleting ? "Deleting…" : "Delete account"}
         </button>
       </div>

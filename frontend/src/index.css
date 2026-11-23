@@ -617,11 +617,61 @@
     margin-left: auto;
   }
 
+  /* The account button (components/AccountMenu.tsx): your email on desktop, just the icon on phones */
+  .account {
+    position: relative;
+    min-width: 0;
+  }
+
+  .nav-account {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 100%;
+    height: var(--control-sm);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+
+  .nav-account:hover,
+  .nav-account[aria-expanded="true"] {
+    background: var(--subtle);
+    color: var(--ink);
+  }
+
   .nav-email {
     overflow: hidden;
-    color: var(--ink-3);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Desktop: the account menu as a dropdown under the button (phones use a Sheet instead) */
+  .account-menu {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    z-index: 30;
+    width: 240px;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    animation: rise-in var(--duration) var(--ease);
+  }
+
+  .account-menu .sheet-item {
+    min-height: 40px;
+    font-size: var(--text-md);
+  }
+
+  .account-menu .sheet-item svg {
+    width: 16px;
+    height: 16px;
   }
 
   /* Red unread count on a nav tab */
@@ -642,7 +692,6 @@
     display: contents;
   }
 
-  .nav-account,
   .bottom-tabs {
     display: none;
   }
@@ -706,6 +755,10 @@
   }
 
   /* Label with a line of explanation under it */
+  .sheet-item-danger {
+    color: var(--danger);
+  }
+
   .sheet-item-2 {
     flex-direction: column;
     align-items: flex-start;
@@ -1720,9 +1773,11 @@
   }
 
   .nav-account {
-    display: inline-flex;
+    justify-content: center;
     width: 44px;
     height: 44px;
+    padding: 0;
+    color: var(--ink-2);
   }
 
   .bottom-tabs {

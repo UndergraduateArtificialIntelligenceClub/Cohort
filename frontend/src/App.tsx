@@ -3,19 +3,16 @@ import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
-import { logOut } from "./lib/logout";
 import { useUnreadCount } from "./lib/useUnreadCount";
 import AccountMenu from "./components/AccountMenu";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
-import { IconBell, IconCalendar, IconLogout, IconUpload, IconUsers, Logo } from "./components/Icons";
-import { InstallButton } from "./components/InstallPrompt";
+import { IconBell, IconCalendar, IconUpload, IconUsers, Logo } from "./components/Icons";
 import NotificationListener from "./components/NotificationListener";
 import NotificationSettings from "./components/NotificationSettings";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import StudyBuddy from "./pages/StudyBuddy";
 import Upload from "./pages/Upload";
-import DeleteAccount from "./components/DeleteAccount";
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
 // Popups (like the review step after upload) live in src/components.
@@ -34,8 +31,6 @@ function App() {
   const unread = useUnreadCount();
   // Desktop: the Notifications sheet, opened from the bell in the nav (phones open it from the account menu)
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  // Desktop: the delete account popup, opened from the nav (phones open it from the account menu) 
-  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   // On page load: are we already logged in? Then keep listening for login/logout
   useEffect(() => {
@@ -83,10 +78,7 @@ function App() {
           </div>
           {session && (
             <div className="nav-right">
-              {/* Desktop: email, notifications, install and log out inline. Phones: all of them live in the account menu. */}
-              <span className="nav-email" title={session.user.email}>
-                {session.user.email}
-              </span>
+              {/* Desktop keeps the bell out in the bar. Everything else, and on phones the bell too, is in the account menu. */}
               <span className="nav-desktop">
                 <button
                   type="button"
@@ -97,14 +89,6 @@ function App() {
                 >
                   <IconBell size={18} />
                 </button>
-                <InstallButton />
-                <button type="button" onClick={() => setShowDeleteAccount(true)} className="btn btn-quiet btn-sm">
-                  Delete account
-                </button>
-                <button type="button" onClick={logOut} className="btn btn-quiet btn-sm">
-                  <IconLogout />
-                  Log out
-                </button>
               </span>
               <AccountMenu email={session.user.email} />
             </div>
@@ -112,7 +96,6 @@ function App() {
         </nav>
       </header>
       {notificationsOpen && <NotificationSettings onClose={() => setNotificationsOpen(false)} />}
-      {showDeleteAccount && <DeleteAccount onClose={() => setShowDeleteAccount(false)} />}
       {/* Phones: the pages as tabs along the bottom, where thumbs reach (hidden on desktop in index.css) */}
       <nav className="bottom-tabs" aria-label="Pages">
         {links.map(({ to, label, icon: Icon }) => (
