@@ -3,12 +3,10 @@ import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { supabase, supabaseConfigured } from "./lib/supabase";
-import { logOut } from "./lib/logout";
 import { useUnreadCount } from "./lib/useUnreadCount";
 import AccountMenu from "./components/AccountMenu";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
-import { IconBell, IconCalendar, IconLogout, IconUpload, IconUsers, Logo } from "./components/Icons";
-import { InstallButton } from "./components/InstallPrompt";
+import { IconBell, IconCalendar, IconUpload, IconUsers, Logo } from "./components/Icons";
 import NotificationListener from "./components/NotificationListener";
 import NotificationSettings from "./components/NotificationSettings";
 import Calendar from "./pages/Calendar";
@@ -80,10 +78,7 @@ function App() {
           </div>
           {session && (
             <div className="nav-right">
-              {/* Desktop: email, notifications, install and log out inline. Phones: all of them live in the account menu. */}
-              <span className="nav-email" title={session.user.email}>
-                {session.user.email}
-              </span>
+              {/* Desktop keeps the bell out in the bar. Everything else, and on phones the bell too, is in the account menu. */}
               <span className="nav-desktop">
                 <button
                   type="button"
@@ -93,11 +88,6 @@ function App() {
                   onClick={() => setNotificationsOpen(true)}
                 >
                   <IconBell size={18} />
-                </button>
-                <InstallButton />
-                <button type="button" onClick={logOut} className="btn btn-quiet btn-sm">
-                  <IconLogout />
-                  Log out
                 </button>
               </span>
               <AccountMenu email={session.user.email} />

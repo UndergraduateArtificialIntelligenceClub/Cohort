@@ -180,3 +180,19 @@ def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
         )
 
     return extract_deadlines(text)
+
+@app.delete("/account", status_code=204)
+def delete_account(user: dict = Depends(require_user)):
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Please log in first.")
+    try:
+        res = httpx.delete(
+            f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+            headers={"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY},
+            timeout=10,
+        )
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="Couldn't reach Supabase. Try again.")
+    if res.status_code not in (200, 204):
+        raise HTTPException(status_code=502, detail="Couldn't delete your account. Try again.")
