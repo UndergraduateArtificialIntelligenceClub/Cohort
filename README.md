@@ -85,6 +85,8 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
 }
 ```
 
+Saved deadlines can also be dates people add themselves on the calendar. Those have `source_text: null`, and personal ones (a dentist appointment, a shift) also have `course: null`, `category: "personal"` and `weight: null`. The parser never returns these, so `backend/models.py` doesn't have them. Anything keyed on course (study buddy, the course library) leaves personal items out. See [supabase/migrations/20261122000000_own_dates.sql](supabase/migrations/20261122000000_own_dates.sql).
+
 `POST /parse` and `POST /parse-pdf` return a `ParseResponse`:
 
 ```
@@ -97,7 +99,7 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
 `instructor` is `null` when the syllabus doesn't name one.
 
 ## Notifications
-Cohort sends push notifications: a deadline reminder the evening before each deadline (plus 3 days' notice for exams and anything worth 15% or more), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
+Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
 
 How it fits together:
 - [frontend/public/sw.js](frontend/public/sw.js) shows the notifications. [frontend/src/lib/notifications.ts](frontend/src/lib/notifications.ts) turns them on and off.

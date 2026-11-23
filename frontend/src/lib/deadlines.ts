@@ -2,6 +2,9 @@ import { supabase } from "./supabase";
 import { normalizeCourse } from "./courses";
 import type { Deadline } from "../types";
 
+// Postgres' "unique_violation": the user already has this course + title + date
+const DUPLICATE = "23505";
+
 // Save and load the logged in user's deadlines (issue #51). No UI here; pages call these.
 // The deadlines table and its row-level security come from supabase/migrations (#30).
 
@@ -25,12 +28,34 @@ export async function saveDeadlines(deadlines: Deadline[]): Promise<void> {
   if (deadlines.length === 0) return;
   const user_id = await currentUserId();
   // Every row needs user_id, or the insert policy rejects it
-  const rows = deadlines.map((d) => ({ ...d, course: normalizeCourse(d.course), weight: d.weight ?? null, user_id }));
+  const rows = deadlines.map((d) => ({ ...d, course: d.course === null ? null : normalizeCourse(d.course), weight: d.weight ?? null, user_id }));
   // Matches the unique constraint in supabase/migrations/20261118000000_unique_deadlines.sql
   const { error } = await supabase
     .from("deadlines")
     .upsert(rows, { onConflict: "user_id,course,title,date", ignoreDuplicates: true });
   if (error) throw new Error(`Couldn't save deadlines: ${error.message}`);
+}
+
+// Add one date the user typed in on the calendar, school or personal, and return it as saved.
+// Unlike saveDeadlines, a school item they already have is an error, so they find out instead of nothing happening.
+export async function addDeadline(deadline: Deadline): Promise<Deadline> {
+  const user_id = await currentUserId();
+  const { data, error } = await supabase
+    .from("deadlines")
+    .insert({
+      course: deadline.course === null ? null : normalizeCourse(deadline.course),
+      title: deadline.title,
+      date: deadline.date,
+      category: deadline.category,
+      source_text: deadline.source_text,
+      weight: deadline.weight ?? null,
+      user_id,
+    })
+    .select(COLUMNS)
+    .single();
+  if (error?.code === DUPLICATE) throw new Error("That's already on your calendar for that day.");
+  if (error) throw new Error(`Couldn't add it: ${error.message}`);
+  return data as Deadline;
 }
 
 // The user's saved deadlines, soonest first
@@ -46,13 +71,17 @@ export async function loadDeadlines(): Promise<Deadline[]> {
 }
 
 // The courses the user has deadlines in, normalized, e.g. {"CMPUT 174", "STAT 151"}.
-// The course library uses it to mark courses that are already on the calendar.
+// The course library uses it to mark courses that are already on the calendar. Personal items have no course.
 export async function loadMyCourses(): Promise<Set<string>> {
   const user_id = await currentUserId();
-  const { data, error } = await supabase.from("deadlines").select("course").eq("user_id", user_id);
+  const { data, error } = await supabase
+    .from("deadlines")
+    .select("course")
+    .eq("user_id", user_id)
+    .not("course", "is", null);
   if (error) throw new Error(`Couldn't load your courses: ${error.message}`);
   // Rows saved before course names were normalized may still be "Stat 151"
-  return new Set(data.map((row) => normalizeCourse(row.course)));
+  return new Set(data.flatMap((row) => (row.course ? [normalizeCourse(row.course)] : [])));
 }
 
 // Update the fields on an existing deadline
@@ -60,12 +89,14 @@ export async function updateDeadline(
   id: string,
   changes: Partial<Deadline>
 ): Promise<void> {
-  const row = changes.course === undefined ? changes : { ...changes, course: normalizeCourse(changes.course) };
+  // course is null when it's being turned into a personal item
+  const row = changes.course == null ? changes : { ...changes, course: normalizeCourse(changes.course) };
   const { error } = await supabase
     .from("deadlines")
     .update(row)
     .eq("id", id);
 
+  if (error?.code === DUPLICATE) throw new Error("That's already on your calendar for that day.");
   if (error) {
     throw new Error(`Couldn't update deadline: ${error.message}`);
   }

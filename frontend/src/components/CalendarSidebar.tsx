@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import type { Deadline } from "../types";
+import { courseLabel } from "../lib/courses";
 import {
   courseCount,
   dayLabel,
@@ -57,16 +58,16 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
 
   // Course code next to the dot, so courses are told apart by more than color
   const course = (d: Deadline) => (
-    <span className="side-course" style={courseVar(courseColors[d.course])}>
+    <span className="side-course" style={courseVar(courseColors[courseLabel(d)])}>
       <i className="dot" />
-      {d.course}
+      {courseLabel(d)}
     </span>
   );
 
   // One deadline in a list. Hovering outlines its day on the grid; clicking opens it.
   const row = (d: Deadline) => (
     <li
-      key={d.id ?? `${d.course}-${d.title}-${d.date}`}
+      key={d.id ?? `${courseLabel(d)}-${d.title}-${d.date}`}
       className={`side-row${d.done ? " is-done" : ""}`}
       onMouseEnter={() => onHoverDate(d.date)}
       onMouseLeave={() => onHoverDate(null)}
@@ -76,7 +77,7 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
         className="checkbox"
         checked={!!d.done}
         onChange={() => onToggleDone(d)}
-        aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${d.course} ${d.title}`}
+        aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${courseLabel(d)} ${d.title}`}
       />
       <button type="button" className="side-row-main" onClick={() => onOpen(d)}>
         <span className="side-row-title">{d.title}</span>
@@ -98,7 +99,7 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
       <section className="side-sec">
         <h2 className="side-h">Next up</h2>
         {plan.nextUp ? (
-          <div className="side-hero" style={courseVar(courseColors[plan.nextUp.course])}>
+          <div className="side-hero" style={courseVar(courseColors[courseLabel(plan.nextUp)])}>
             {course(plan.nextUp)}
             <button type="button" className="side-hero-title" onClick={() => onOpen(plan.nextUp!)}>
               {plan.nextUp.title}
@@ -121,7 +122,7 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
                 <button type="button" className="link-button" onClick={() => onOpen(plan.later!)}>
                   {plan.later.title}
                 </button>{" "}
-                ({plan.later.course}), {longDate(plan.later.date)}
+                ({courseLabel(plan.later)}), {longDate(plan.later.date)}
               </p>
             ) : (
               <p className="muted">You're all caught up.</p>
@@ -248,7 +249,7 @@ function Forecast({ forecast, today, course, onOpen, onShowWeek }: ForecastProps
         </p>
         <ul className="rows crunch-list">
           {listed.map((d) => (
-            <li key={d.id ?? `${d.course}-${d.title}`}>
+            <li key={d.id ?? `${courseLabel(d)}-${d.title}`}>
               <button type="button" className={`crunch-item${d.done ? " is-done" : ""}`} onClick={() => onOpen(d)}>
                 {course(d)}
                 <span className="crunch-item-title">{d.title}</span>
@@ -264,7 +265,7 @@ function Forecast({ forecast, today, course, onOpen, onShowWeek }: ForecastProps
         )}
         {hell && startEarly && (
           <p className="crunch-tip">
-            Biggest one: <strong>{startEarly.title}</strong> ({startEarly.course}),{" "}
+            Biggest one: <strong>{startEarly.title}</strong> ({courseLabel(startEarly)}),{" "}
             {hell.start === thisWeek
               ? `due ${dayLabel(startEarly.date, today).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}.`
               : `${["quiz", "midterm", "final"].includes(startEarly.category) ? "start studying" : "start it"} before that week.`}

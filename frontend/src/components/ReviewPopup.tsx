@@ -76,7 +76,7 @@ function ReviewPopup({ pending, onDone }: Props) {
         <div className="fields">
           <label className="field">
             <span className="field-label">Course</span>
-            <input className="input" value={current.course} onChange={(e) => update("course", e.target.value)} />
+            <input className="input" value={current.course ?? ""} onChange={(e) => update("course", e.target.value)} />
           </label>
           <label className="field">
             <span className="field-label">Date</span>
@@ -122,7 +122,7 @@ function ReviewPopup({ pending, onDone }: Props) {
             <span className="field-label">Source text</span>
             <textarea
               className="input h-20"
-              value={current.source_text}
+              value={current.source_text ?? ""}
               onChange={(e) => update("source_text", e.target.value)}
             />
           </label>
