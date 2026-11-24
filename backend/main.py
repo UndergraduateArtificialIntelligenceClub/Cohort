@@ -1,6 +1,7 @@
 import os
-from datetime import date
+from datetime import date, datetime
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 from threading import Lock
 from urllib.parse import urlsplit
 from icalendar import Calendar
@@ -14,7 +15,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader 
 
-from models import ParseResponse
+from models import ParseResponse, Deadline
 
 
 MAX_TEXT_LENGTH = 100_000
@@ -26,6 +27,7 @@ parse_counts_lock = Lock()
 
 
 CANVAS_HOSTNAME = "canvas.ualberta.ca"
+CANVAS_TIMEZONE = ZoneInfo("America/Edmonton")
 
 load_dotenv()
 MODEL = "gemini-3.5-flash-lite"
@@ -150,6 +152,18 @@ def infer_canvas_category(title: str) -> str:
         return "assignment"
 
     return "other"
+
+
+def format_canvas_date(value: date | datetime) -> str:
+    if isinstance(value, datetime):
+        # Convert timezone-aware timestamps before choosing the calendar day.
+        if value.tzinfo is not None:
+            value = value.astimezone(CANVAS_TIMEZONE)
+
+        return value.date().isoformat()
+
+    # Date-only values already identify the intended calendar day.
+    return value.isoformat()
 
 @lru_cache(maxsize=1)
 def get_client() -> genai.Client:
@@ -351,4 +365,39 @@ def import_canvas(req: CanvasImportRequest, user: dict = Depends(require_user)):
      # Confirm the downloaded content represents a calendar.
     if calendar.name != "VCALENDAR":
         raise HTTPException(status_code=400, detail="The feed link did not return a valid calendar.")
+
+    deadlines = []
+
+    for event in calendar.walk("VEVENT"):
+        summary = str(event.get("SUMMARY", ""))
+        title = summary.strip()
+
+        if not title:
+            continue
+
+        try:
+            start = event.decoded("DTSTART")
+        except (KeyError, ValueError):
+            # Skip events whose date is missing or cannot be decoded.
+            continue
+
+        # This accepts both date and datetime objects.
+        if not isinstance(start, date):
+            continue
+
+        deadlines.append(
+            Deadline(
+                course=extract_canvas_course(title),
+                title=title,
+                date=format_canvas_date(start),
+                category=infer_canvas_category(title),
+                source_text=summary,
+                weight=None,
+            )
+        )
+
+    return ParseResponse(
+        deadlines=deadlines,
+        instructor=None,
+    )
     
