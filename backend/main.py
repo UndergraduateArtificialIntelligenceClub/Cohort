@@ -2,6 +2,9 @@ import os
 from datetime import date
 from functools import lru_cache
 from threading import Lock
+from urllib.parse import urlsplit
+from icalendar import Calendar
+import re
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
@@ -20,6 +23,9 @@ MAX_DAILY_PARSES = 20
 daily_parse_counts = dict()
 
 parse_counts_lock = Lock()
+
+
+CANVAS_HOSTNAME = "canvas.ualberta.ca"
 
 load_dotenv()
 MODEL = "gemini-3.5-flash-lite"
@@ -40,6 +46,10 @@ app.add_middleware(
 
 class ParseRequest(BaseModel):
     text: str
+
+
+class CanvasImportRequest(BaseModel):
+    url: str
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
@@ -82,6 +92,64 @@ def require_user(authorization: str | None = Header(default=None)) -> dict:
         raise HTTPException(status_code=401, detail="Your login expired. Please log in again.")
     return res.json()
 
+
+def validate_canvas_url(url: str) -> None:
+    try:
+        parsed_url = urlsplit(url)
+        port = parsed_url.port
+    except ValueError:
+        # malformed URLs and invalid ports should produce a client error.
+        raise HTTPException(status_code=400, detail="Invalid Canvas calendar URL.") from None
+
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.hostname != CANVAS_HOSTNAME
+        or port not in (None, 443)
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+    ):
+        raise HTTPException(status_code=400, detail="Please provide an HTTPS calendar feed URL from canvas.ualberta.ca.")
+
+
+def extract_canvas_course(title: str) -> str:
+    # Canvas places the subject and course number immediately after "[".
+    match = re.search(
+        r"\[([A-Z]+)\s+(\d{3})\b",
+        title,
+        flags=re.IGNORECASE,
+    )
+
+    if match is None:
+        return "Unknown"
+
+    subject = match.group(1).upper()
+    number = match.group(2)
+
+    return f"{subject} {number}"
+
+def infer_canvas_category(title: str) -> str:
+    # Classify the assessment name without including course metadata.
+    assessment_title = title.split("[", 1)[0].lower()
+
+    if re.search(r"\bmid[\s-]?term\b", assessment_title):
+        return "midterm"
+
+    if re.search(r"\bfinal\b", assessment_title):
+        return "final"
+
+    if re.search(r"\bquiz(?:zes)?\b", assessment_title):
+        return "quiz"
+
+    if re.search(r"\b(?:lab|labs|laboratory)\b", assessment_title):
+        return "lab"
+
+    if re.search(
+        r"\b(?:assignment|homework|project|problem\s+set)\b",
+        assessment_title,
+    ):
+        return "assignment"
+
+    return "other"
 
 @lru_cache(maxsize=1)
 def get_client() -> genai.Client:
@@ -245,3 +313,42 @@ def delete_account(user: dict = Depends(require_user)):
         raise HTTPException(status_code=503, detail="Couldn't reach Supabase. Try again.")
     if res.status_code not in (200, 204):
         raise HTTPException(status_code=502, detail="Couldn't delete your account. Try again.")
+
+
+@app.post("/import-canvas", response_model=ParseResponse)
+def import_canvas(req: CanvasImportRequest, user: dict = Depends(require_user)):
+    validate_canvas_url(req.url)
+
+    try:
+        response = httpx.get(
+            req.url,
+            timeout=10,
+            follow_redirects=False,
+        )
+
+        # Reject unsuccessful responses before processing their contents.
+        response.raise_for_status()
+
+    except httpx.InvalidURL:
+        raise HTTPException(status_code=400, detail="Invalid Canvas calendar URL.") from None
+
+    except httpx.HTTPError:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Couldn't download your Canvas calendar. "
+                "Check the feed link and try again."
+            )
+        ) from None
+
+    calendar_data = response.content
+
+    try:
+        calendar = Calendar.from_ical(calendar_data)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Couldn't read this calendar. Check your Canvas feed link.")
+
+     # Confirm the downloaded content represents a calendar.
+    if calendar.name != "VCALENDAR":
+        raise HTTPException(status_code=400, detail="The feed link did not return a valid calendar.")
+    
