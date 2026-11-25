@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { normalizeCourse } from "./courses";
+import { cancelRequest } from "./studyBuddy";
 import type { Deadline } from "../types";
 
 // Postgres' "unique_violation": the user already has this course + title + date
@@ -111,6 +112,27 @@ export async function deleteDeadline(id: string): Promise<void> {
 
   if (error) {
     throw new Error(`Couldn't delete deadline: ${error.message}`);
+  }
+}
+
+// Delete every date in one course, so dropping a course doesn't mean deleting its dates one by one.
+// Pass the course exactly as it's stored (deadline.course), so it removes the same rows the calendar groups
+// under that course. Personal items have no course, so they can never be caught by this.
+// Leaving a course also stops you waiting for a study buddy in it, since you can only look for one in your
+// own courses (#67). Buddies you're already matched with stay, and so do syllabi shared to the course library.
+export async function deleteCourse(course: string): Promise<void> {
+  const user_id = await currentUserId();
+  // First, so if it fails nothing is deleted and you can just try again.
+  // Requests are stored normalized; older deadline rows might not be.
+  await cancelRequest(normalizeCourse(course));
+  const { error } = await supabase
+    .from("deadlines")
+    .delete()
+    .eq("user_id", user_id)
+    .eq("course", course);
+
+  if (error) {
+    throw new Error(`Couldn't delete ${course}: ${error.message}`);
   }
 }
 

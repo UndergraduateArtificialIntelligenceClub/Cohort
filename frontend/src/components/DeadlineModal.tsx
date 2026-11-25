@@ -21,6 +21,10 @@ type Props = {
   // Only for saved ones
   onDone?: () => Promise<void>;
   onDelete?: () => Promise<void>;
+  // Saved school items: delete every date in this course at once. courseDates is how many there are
+  // (this one included), so the choice is only offered when there's more than one.
+  onDeleteCourse?: () => Promise<void>;
+  courseDates?: number;
 };
 
 // The school fields, kept while the switch is on Personal so flipping back doesn't lose them
@@ -39,7 +43,7 @@ function validate(fields: SchoolFields, personal: boolean): string {
   return "";
 }
 
-function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete }: Props) {
+function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, onDeleteCourse, courseDates = 0 }: Props) {
   const id = useId();
   const isNew = !deadline.id;
   const [personal, setPersonal] = useState(isPersonal(deadline));
@@ -54,15 +58,19 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete }:
   const [showSource, setShowSource] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Delete was pressed on a course with other dates: the footer asks "just this one, or the whole course?"
+  const [askDelete, setAskDelete] = useState(false);
 
-  // Escape closes the popup, like clicking outside it
+  // Escape closes the popup, like clicking outside it. While asking about delete, it only backs out of that.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key !== "Escape" || busy) return;
+      if (askDelete) setAskDelete(false);
+      else onClose();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [busy, onClose]);
+  }, [busy, askDelete, onClose]);
 
   function update<K extends keyof SchoolFields>(field: K, value: SchoolFields[K]) {
     setEdited({ ...edited, [field]: value });
@@ -97,7 +105,15 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete }:
     );
   }
 
+  // Uses the saved course, not the one being edited in the box, since that's the course whose dates get deleted
+  const canDeleteCourse = !!onDeleteCourse && !isPersonal(deadline) && courseDates > 1;
+
   function remove() {
+    if (canDeleteCourse) {
+      setError("");
+      setAskDelete(true);
+      return;
+    }
     if (!onDelete || !window.confirm(`Delete "${deadline.title}"? This can't be undone.`)) return;
     run(onDelete);
   }
@@ -233,7 +249,24 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete }:
         {error && <p className="notice notice-error mt-4">{error}</p>}
 
         <div className="modal-actions">
-          {isNew ? (
+          {askDelete && onDelete && onDeleteCourse ? (
+            <>
+              <p className="w-full text-sm">
+                Delete just <strong>{deadline.title}</strong>, or all {courseDates} {deadline.course} dates? This can't
+                be undone.
+              </p>
+              <span className="flex-1" />
+              <button type="button" disabled={busy} className="btn btn-quiet" onClick={() => setAskDelete(false)}>
+                Cancel
+              </button>
+              <button type="button" disabled={busy} className="btn" onClick={() => run(onDelete)}>
+                Just this one
+              </button>
+              <button type="button" disabled={busy} className="btn btn-danger" onClick={() => run(onDeleteCourse)}>
+                {busy ? "Deleting..." : `Delete all ${courseDates}`}
+              </button>
+            </>
+          ) : isNew ? (
             <>
               <span className="flex-1" />
               <button type="button" disabled={busy} className="btn" onClick={onClose}>

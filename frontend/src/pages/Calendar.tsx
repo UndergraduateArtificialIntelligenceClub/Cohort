@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
-import { addDeadline, deleteDeadline, loadDeadlines, setDone, updateDeadline } from "../lib/deadlines";
+import { addDeadline, deleteCourse, deleteDeadline, loadDeadlines, setDone, updateDeadline } from "../lib/deadlines";
 import { courseLabel, isPersonal, PERSONAL_LABEL } from "../lib/courses";
 import type { Deadline } from "../types";
 import FullCalendar, { type CalendarRef } from "@fullcalendar/react";
@@ -322,6 +322,15 @@ function Calendar() {
           onDelete={async () => {
             await deleteDeadline(selectedDeadline.id!);
             setDeadlines((current) => current?.filter((d) => d.id !== selectedDeadline.id) ?? null);
+            setSelectedDeadline(null);
+          }}
+          // Dropped a course: delete all its dates at once instead of one by one
+          courseDates={selectedDeadline.course === null ? 0 : (deadlines ?? []).filter((d) => d.course === selectedDeadline.course).length}
+          onDeleteCourse={async () => {
+            const course = selectedDeadline.course;
+            if (course === null) return;
+            await deleteCourse(course);
+            setDeadlines((current) => current?.filter((d) => d.course !== course) ?? null);
             setSelectedDeadline(null);
           }}
           onSave={async (changes) => {
