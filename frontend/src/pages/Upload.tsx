@@ -1,6 +1,7 @@
 // Upload page UI: issue #28
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import CanvasImport from "../components/CanvasImport";
 import ReviewPopup from "../components/ReviewPopup";
 import SharedLibrary from "../components/SharedLibrary";
 import { IconAlert, IconArrowRight, IconUpload } from "../components/Icons";
@@ -24,6 +25,8 @@ function Upload() {
   const [unsaved, setUnsaved] = useState<Deadline[] | null>(null);
   // Where the deadlines under review came from: a classmate's shared syllabus (its id), or null for your own upload
   const [fromShared, setFromShared] = useState<string | null>(null);
+  // A Canvas import only has upcoming items and no weights, so sharing it would replace a fuller syllabus in the library (#62)
+  const [fromCanvas, setFromCanvas] = useState(false);
   const [instructor, setInstructor] = useState<string | null>(null);
   // Share your own uploads to the course library (#66)
   const [share, setShare] = useState(true);
@@ -43,7 +46,7 @@ function Upload() {
       // The library is a bonus: if it fails, the user's own deadlines are already saved, so carry on
       try {
         if (fromShared) await markUsed(fromShared);
-        else if (share) await shareDeadlines(confirmed, instructor);
+        else if (share && !fromCanvas) await shareDeadlines(confirmed, instructor);
       } catch (e) {
         console.error(e);
       }
@@ -102,6 +105,7 @@ function Upload() {
       }
 
       setFromShared(null);
+      setFromCanvas(false);
       setInstructor(data.instructor);
       setPending(data.deadlines);
     } catch (e) {
@@ -166,6 +170,7 @@ function Upload() {
         onUse={(s: SharedSyllabus) => {
           setError("");
           setFromShared(s.id);
+          setFromCanvas(false);
           setInstructor(s.instructor);
           setPending(s.deadlines);
         }}
@@ -245,6 +250,17 @@ function Upload() {
           </div>
         )}
       </div>
+
+      <CanvasImport
+        disabled={loading || saving}
+        onImported={(deadlines) => {
+          setError("");
+          setFromShared(null);
+          setFromCanvas(true);
+          setInstructor(null);
+          setPending(deadlines);
+        }}
+      />
 
       {error && (
         <div className="notice notice-error" role="alert">
