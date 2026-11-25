@@ -29,6 +29,14 @@ parse_counts_lock = Lock()
 CANVAS_HOSTNAME = "canvas.ualberta.ca"
 CANVAS_TIMEZONE = ZoneInfo("America/Edmonton")
 
+
+MAX_TEXT_LENGTH = 100_000
+MAX_PDF_SIZE = 10_000_000   # 10 MB limit
+MAX_DAILY_PARSES = 20
+daily_parse_counts = dict()
+
+parse_counts_lock = Lock()
+
 load_dotenv()
 MODEL = "gemini-3.5-flash-lite"
 
