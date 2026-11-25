@@ -1,7 +1,11 @@
 import os
-from datetime import date
+from datetime import date, datetime
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 from threading import Lock
+from urllib.parse import urlsplit
+from icalendar import Calendar
+import re
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
@@ -11,7 +15,19 @@ import httpx
 from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader 
 
-from models import ParseResponse
+from models import ParseResponse, Deadline
+
+
+MAX_TEXT_LENGTH = 100_000
+MAX_PDF_SIZE = 10_000_000   # 10 MB limit
+MAX_DAILY_PARSES = 20
+daily_parse_counts = dict()
+
+parse_counts_lock = Lock()
+
+
+CANVAS_HOSTNAME = "canvas.ualberta.ca"
+CANVAS_TIMEZONE = ZoneInfo("America/Edmonton")
 
 
 MAX_TEXT_LENGTH = 100_000
@@ -40,6 +56,10 @@ app.add_middleware(
 
 class ParseRequest(BaseModel):
     text: str
+
+
+class CanvasImportRequest(BaseModel):
+    url: str
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
@@ -82,6 +102,82 @@ def require_user(authorization: str | None = Header(default=None)) -> dict:
         raise HTTPException(status_code=401, detail="Your login expired. Please log in again.")
     return res.json()
 
+
+def validate_canvas_url(url: str) -> None:
+    try:
+        parsed_url = urlsplit(url)
+        port = parsed_url.port
+    except ValueError:
+        # malformed URLs and invalid ports should produce a client error.
+        raise HTTPException(status_code=400, detail="Invalid Canvas calendar URL.") from None
+
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.hostname != CANVAS_HOSTNAME
+        or port not in (None, 443)
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+    ):
+        raise HTTPException(status_code=400, detail="Please provide an HTTPS calendar feed URL from canvas.ualberta.ca.")
+
+
+def extract_canvas_course(summary: str) -> str | None:
+    # Canvas puts the course in brackets after the event name, e.g. "Assignment 1 [CMPUT 174 ...]".
+    # Subjects can be more than one word ("MEC E 250", "CH E 243"), so allow spaces inside the subject.
+    match = re.search(r"\[\s*([A-Z]+(?:\s[A-Z]+)*)\s+(\d{3})\b", summary, flags=re.IGNORECASE)
+
+    if match is None:
+        # No course tag usually means the student's own Canvas event. Return None so the caller skips it,
+        # instead of saving it under a made-up course that study buddy and the library would treat as real (#62).
+        return None
+
+    # Same rule as normalizeCourse() in frontend/src/lib/courses.ts: single spaces, upper case.
+    subject = " ".join(match.group(1).split()).upper()
+    return f"{subject} {match.group(2)}"
+
+
+def strip_canvas_course(summary: str) -> str:
+    # The calendar already shows the course, so drop the trailing "[CMPUT 174 ...]" from the title.
+    title = re.sub(r"\s*\[[^\]]*\]\s*$", "", summary).strip()
+    return title or summary.strip()
+
+
+def infer_canvas_category(title: str) -> str:
+    # Classify the assessment name; the title has already had the course tag removed.
+    assessment_title = title.lower()
+
+    if re.search(r"\bmid[\s-]?term\b", assessment_title):
+        return "midterm"
+
+    # "Final project" or "final report" is coursework, not the final exam.
+    if re.search(r"\bfinal\b(?!\s+(?:project|paper|report|assignment|presentation))", assessment_title):
+        return "final"
+
+    if re.search(r"\bquiz(?:zes)?\b", assessment_title):
+        return "quiz"
+
+    if re.search(r"\b(?:lab|labs|laboratory)\b", assessment_title):
+        return "lab"
+
+    if re.search(
+        r"\b(?:assignment|homework|project|problem\s+set)\b",
+        assessment_title,
+    ):
+        return "assignment"
+
+    return "other"
+
+
+def format_canvas_date(value: date | datetime) -> str:
+    if isinstance(value, datetime):
+        # Convert timezone-aware timestamps before choosing the calendar day.
+        if value.tzinfo is not None:
+            value = value.astimezone(CANVAS_TIMEZONE)
+
+        return value.date().isoformat()
+
+    # Date-only values already identify the intended calendar day.
+    return value.isoformat()
 
 @lru_cache(maxsize=1)
 def get_client() -> genai.Client:
@@ -245,3 +341,80 @@ def delete_account(user: dict = Depends(require_user)):
         raise HTTPException(status_code=503, detail="Couldn't reach Supabase. Try again.")
     if res.status_code not in (200, 204):
         raise HTTPException(status_code=502, detail="Couldn't delete your account. Try again.")
+
+
+@app.post("/import-canvas", response_model=ParseResponse)
+def import_canvas(req: CanvasImportRequest, user: dict = Depends(require_user)):
+    validate_canvas_url(req.url)
+
+    try:
+        response = httpx.get(
+            req.url,
+            timeout=10,
+            follow_redirects=False,
+        )
+
+        # Reject unsuccessful responses before processing their contents.
+        response.raise_for_status()
+
+    except httpx.InvalidURL:
+        raise HTTPException(status_code=400, detail="Invalid Canvas calendar URL.") from None
+
+    except httpx.HTTPError:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Couldn't download your Canvas calendar. "
+                "Check the feed link and try again."
+            )
+        ) from None
+
+    calendar_data = response.content
+
+    try:
+        calendar = Calendar.from_ical(calendar_data)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Couldn't read this calendar. Check your Canvas feed link.")
+
+     # Confirm the downloaded content represents a calendar.
+    if calendar.name != "VCALENDAR":
+        raise HTTPException(status_code=400, detail="The feed link did not return a valid calendar.")
+
+    deadlines = []
+
+    for event in calendar.walk("VEVENT"):
+        summary = str(event.get("SUMMARY", "")).strip()
+        course = extract_canvas_course(summary)
+
+        # Skip events with no title or no course tag (see extract_canvas_course).
+        if not summary or course is None:
+            continue
+
+        title = strip_canvas_course(summary)
+
+        try:
+            start = event.decoded("DTSTART")
+        except (KeyError, ValueError):
+            # Skip events whose date is missing or cannot be decoded.
+            continue
+
+        # This accepts both date and datetime objects.
+        if not isinstance(start, date):
+            continue
+
+        deadlines.append(
+            Deadline(
+                course=course,
+                title=title,
+                date=format_canvas_date(start),
+                category=infer_canvas_category(title),
+                source_text=summary,
+                weight=None,
+            )
+        )
+
+    return ParseResponse(
+        deadlines=deadlines,
+        instructor=None,
+    )
+    
