@@ -79,19 +79,6 @@ function ReviewPopup({ pending, onDone }: Props) {
             <input className="input" value={current.course ?? ""} onChange={(e) => update("course", e.target.value)} />
           </label>
           <label className="field">
-            <span className="field-label">Date</span>
-            <input
-              className="input"
-              type="date"
-              value={current.date}
-              onChange={(e) => update("date", e.target.value)}
-            />
-          </label>
-          <label className="field field-wide">
-            <span className="field-label">Title</span>
-            <input className="input" value={current.title} onChange={(e) => update("title", e.target.value)} />
-          </label>
-          <label className="field">
             <span className="field-label">Category</span>
             <select
               className="input capitalize"
@@ -105,7 +92,32 @@ function ReviewPopup({ pending, onDone }: Props) {
               ))}
             </select>
           </label>
+          <label className="field field-wide">
+            <span className="field-label">Title</span>
+            <input className="input" value={current.title} onChange={(e) => update("title", e.target.value)} />
+          </label>
           <label className="field">
+            <span className="field-label">Date</span>
+            <input
+              className="input"
+              type="date"
+              value={current.date}
+              onChange={(e) => update("date", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">
+              {current.category === "midterm" || current.category === "final" ? "Start time" : "Due time"}
+            </span>
+            <input
+              className="input"
+              type="time"
+              value={current.time ?? ""}
+              // An empty box means the syllabus didn't give a time, which the backend sends as null
+              onChange={(e) => update("time", e.target.value || null)}
+            />
+          </label>
+          <label className="field field-wide">
             <span className="field-label">Weight (%)</span>
             <input
               className="input"

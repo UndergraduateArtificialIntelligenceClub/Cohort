@@ -6,6 +6,9 @@ export type DueDeadline = {
   course: string | null; // null for a personal item. Those only ever come in tomorrow, never heads_up
   title: string;
   date: string; // "YYYY-MM-DD"
+  // "23:59:00": when it's due, or when an exam starts. null when the syllabus didn't say.
+  // Can be missing if this function is deployed before 20261124120000_due_times.sql has run.
+  time?: string | null;
   category: string;
   weight: number | null;
 };
@@ -43,9 +46,21 @@ const MAX_LISTED = 3;
 // "CMPUT 174 Assignment 2", or just "Dentist" for a personal item
 const name = (d: DueDeadline) => (d.course === null ? d.title : `${d.course} ${d.title}`);
 
-// "CMPUT 174 Assignment 2, STAT 151 Lab 3 and 2 more"
+// "11:59 PM" for "23:59:00". Times are Edmonton wall-clock times, so there's nothing to convert.
+// Same as timeLabel in frontend/src/lib/planner.ts.
+function clock(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+const isExam = (d: DueDeadline) => d.category === "midterm" || d.category === "final";
+
+// "CMPUT 174 Assignment 2 at 11:59 PM", or just the name when there's no time
+const nameAt = (d: DueDeadline) => (d.time ? `${name(d)} at ${clock(d.time)}` : name(d));
+
+// "CMPUT 174 Quiz 3 at 9:00 AM, STAT 151 Lab 3 and 2 more"
 function list(deadlines: DueDeadline[]): string {
-  const names = deadlines.slice(0, MAX_LISTED).map(name);
+  const names = deadlines.slice(0, MAX_LISTED).map(nameAt);
   const more = deadlines.length - names.length;
   if (more > 0) return `${names.join(", ")} and ${more} more`;
   if (names.length <= 1) return names.join("");
@@ -55,6 +70,12 @@ function list(deadlines: DueDeadline[]): string {
 // "Tuesday" for "2026-11-24"
 function weekday(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-CA", { weekday: "long", timeZone: "UTC" });
+}
+
+// "Due at 11:59 PM.", "Starts at 9:00 AM." for an exam, "At 2:30 PM." for a personal item
+function atSentence(d: DueDeadline, time: string): string {
+  const verb = d.course === null ? "At" : isExam(d) ? "Starts at" : "Due at";
+  return `${verb} ${clock(time)}.`;
 }
 
 function deadlineMessage(tomorrow: DueDeadline[], headsUp: DueDeadline[]): { title: string; body: string } {
@@ -67,7 +88,8 @@ function deadlineMessage(tomorrow: DueDeadline[], headsUp: DueDeadline[]): { tit
         : allSchool
           ? `${tomorrow.length} deadlines due tomorrow`
           : `${tomorrow.length} things tomorrow`;
-    const parts = tomorrow.length === 1 ? [] : [`${list(tomorrow)}.`];
+    const only = tomorrow.length === 1 ? tomorrow[0] : null;
+    const parts = !only ? [`${list(tomorrow)}.`] : only.time ? [atSentence(only, only.time)] : [];
     if (headsUp.length > 0) parts.push(`Also coming up ${weekday(headsUp[0].date)}: ${list(headsUp)}.`);
     if (parts.length === 0) parts.push(allSchool ? "Open Cohort to check it off when it's done." : "Open Cohort to see your calendar.");
     return { title, body: parts.join(" ") };
@@ -75,7 +97,8 @@ function deadlineMessage(tomorrow: DueDeadline[], headsUp: DueDeadline[]): { tit
   if (headsUp.length === 1) {
     const d = headsUp[0];
     const worth = d.weight ? ` It's worth ${d.weight}% of your grade.` : "";
-    return { title: `${name(d)} is in 3 days`, body: `Due ${weekday(d.date)}.${worth}` };
+    const when = d.time ? `${isExam(d) ? "Starts" : "Due"} ${weekday(d.date)} at ${clock(d.time)}.` : `Due ${weekday(d.date)}.`;
+    return { title: `${name(d)} is in 3 days`, body: `${when}${worth}` };
   }
   return { title: `${headsUp.length} big deadlines in 3 days`, body: `Due ${weekday(headsUp[0].date)}: ${list(headsUp)}.` };
 }

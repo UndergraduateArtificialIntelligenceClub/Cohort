@@ -15,6 +15,9 @@ export type Deadline = {
   course: string | null;
   title: string; // e.g. "Assignment 2"
   date: string; // "YYYY-MM-DD"
+  // "HH:MM", 24-hour, Edmonton time: when it's due, or when an exam starts. null when the syllabus doesn't say.
+  // Optional because rows and shared syllabi saved before times existed don't have it.
+  time?: string | null;
   category: DeadlineCategory;
   // The exact sentence from the syllabus. null for dates the user added themselves
   source_text: string | null;

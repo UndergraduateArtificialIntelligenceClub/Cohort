@@ -10,7 +10,7 @@ import { IconCheck, IconX } from "./Icons";
 
 // The fields the user can edit. Only these are sent on save.
 // A personal item comes back as { course: null, category: "personal", weight: null }.
-export type DeadlineChanges = Pick<Deadline, "course" | "title" | "date" | "category" | "weight">;
+export type DeadlineChanges = Pick<Deadline, "course" | "title" | "date" | "time" | "category" | "weight">;
 
 type Props = {
   deadline: Deadline;
@@ -28,7 +28,8 @@ type Props = {
 };
 
 // The school fields, kept while the switch is on Personal so flipping back doesn't lose them
-type SchoolFields = { course: string; title: string; date: string; category: Category; weight: number | null };
+// time is "" when there isn't one (the time box's own empty value) and saved as null
+type SchoolFields = { course: string; title: string; date: string; time: string; category: Category; weight: number | null };
 
 const TITLE_MAX = 200;
 
@@ -51,6 +52,7 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
     course: deadline.course ?? "",
     title: deadline.title,
     date: deadline.date,
+    time: deadline.time ?? "",
     // A personal item switched to School starts as an assignment
     category: deadline.category === "personal" ? "assignment" : deadline.category,
     weight: deadline.weight ?? null,
@@ -96,11 +98,12 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
       return;
     }
     const title = edited.title.trim();
+    const time = edited.time || null;
     run(() =>
       onSave(
         personal
-          ? { course: null, title, date: edited.date, category: "personal", weight: null }
-          : { ...edited, course: normalizeCourse(edited.course), title }
+          ? { course: null, title, date: edited.date, time, category: "personal", weight: null }
+          : { ...edited, course: normalizeCourse(edited.course), title, time }
       )
     );
   }
@@ -119,6 +122,8 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
   }
 
   const heading = isNew ? "Add a date" : personal ? "Personal date" : "Deadline details";
+  // An exam's time is when it starts; anything else school is when it's due
+  const timeFieldLabel = personal ? "Time" : edited.category === "midterm" || edited.category === "final" ? "Start time" : "Due time";
 
   return (
     <div className="overlay" onClick={busy ? undefined : onClose}>
@@ -172,7 +177,7 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
               </datalist>
             </label>
           )}
-          <label className="field">
+          <label className="field field-wide">
             <span className="field-label">Title</span>
             <input
               className="input"
@@ -191,6 +196,17 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
               type="date"
               value={edited.date}
               onChange={(e) => update("date", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">
+              {timeFieldLabel} <span className="muted font-normal">(optional)</span>
+            </span>
+            <input
+              className="input"
+              type="time"
+              value={edited.time}
+              onChange={(e) => update("time", e.target.value)}
             />
           </label>
 

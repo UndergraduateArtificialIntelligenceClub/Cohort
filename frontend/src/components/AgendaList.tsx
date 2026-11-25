@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from "react";
 import type { Deadline } from "../types";
 import { courseLabel } from "../lib/courses";
 import { loadDismissed, saveDismissed } from "../lib/finishAsk";
-import { courseCount, daysUntil, longDate, makeForecast, makePlan, weekLabel } from "../lib/planner";
+import { bySchedule, courseCount, daysUntil, longDate, makeForecast, makePlan, weekLabel, whenLabel } from "../lib/planner";
 import { IconCheck, IconChevronRight } from "./Icons";
 
 // The calendar on phones (Calendar.tsx shows this in List view): the same Next up, Did you finish? and
@@ -38,7 +38,7 @@ function dayHeading(date: string, today: string): string {
   return longDate(date);
 }
 
-const byDate = (a: Deadline, b: Deadline) => a.date.localeCompare(b.date) || courseLabel(a).localeCompare(courseLabel(b));
+const byDate = (a: Deadline, b: Deadline) => bySchedule(a, b) || courseLabel(a).localeCompare(courseLabel(b));
 
 type RowProps = {
   deadline: Deadline;
@@ -65,6 +65,7 @@ export function AgendaRow({ deadline: d, color, onOpen, onToggleDone }: RowProps
         <span className="ag-meta">
           <i className="dot" />
           {courseLabel(d)}
+          {d.time && ` · ${whenLabel(d)}`}
           {d.weight != null && ` · ${d.weight}%`}
         </span>
       </button>
@@ -143,6 +144,7 @@ function AgendaList({ deadlines, courseColors, today, onOpen, onToggleDone, onSh
             </button>
             <p className="ag-hero-when">
               <strong>{countdown(hero.date, today)}</strong> · {longDate(hero.date)}
+              {hero.time && ` · ${whenLabel(hero)}`}
               {hero.weight != null && ` · ${hero.weight}% of grade`}
             </p>
             <div className="ag-hero-actions">

@@ -67,6 +67,33 @@ export function longDate(iso: string): string {
   return fmt(iso, { weekday: "short", month: "short", day: "numeric" });
 }
 
+// ---------- Times ----------
+// A deadline's time is "HH:MM" in Edmonton, shown as written: never converted, never used in day maths.
+// null means the syllabus didn't say, so nothing is shown (it's never treated as "11:59 PM").
+
+// "11:59 PM" for "23:59". Same as clock() in supabase/functions/send-notifications/compose.ts.
+export function timeLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+// "11:59p", "9a": short enough for a calendar pill
+export function shortTimeLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "a" : "p"}`;
+}
+
+// "Due 11:59 PM", "Starts 9:00 AM" for an exam, or just "2:30 PM" for a personal item. "" with no time.
+export function whenLabel(d: Deadline): string {
+  if (!d.time) return "";
+  if (isPersonal(d)) return timeLabel(d.time);
+  return `${d.category === "midterm" || d.category === "final" ? "Starts" : "Due"} ${timeLabel(d.time)}`;
+}
+
+// Soonest first: by day, then by time, with untimed ones after the timed ones on the same day
+export const bySchedule = (a: Deadline, b: Deadline) =>
+  a.date.localeCompare(b.date) || (a.time ?? "99").localeCompare(b.time ?? "99");
+
 // "Nov 29 – Dec 5" for the week starting on the given day
 export function weekLabel(start: string): string {
   const end = addDays(start, 6);
@@ -107,8 +134,8 @@ export const WEEK_DAYS = 7;
 // Most students won't tick everything, so old ones must never pile up.
 export const ASK_DAYS = 3;
 
-const soonestFirst = (a: Deadline, b: Deadline) =>
-  a.date.localeCompare(b.date) || weightOf(b).value - weightOf(a).value;
+// A 9 AM quiz is next up before an assignment due at 11:59 PM the same day
+const soonestFirst = (a: Deadline, b: Deadline) => bySchedule(a, b) || weightOf(b).value - weightOf(a).value;
 
 export type Plan = {
   nextUp: Deadline | null; // soonest unfinished school deadline in the next 5 days

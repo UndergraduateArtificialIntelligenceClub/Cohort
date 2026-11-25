@@ -70,6 +70,7 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
 | `course` | string | `"CMPUT 174"` |
 | `title` | string | `"Assignment 2"` |
 | `date` | string, `YYYY-MM-DD` | `"2026-10-15"` |
+| `time` | string `HH:MM` (24-hour, Edmonton time) or null (optional): when it's due, or when an exam starts. null when the syllabus doesn't say | `"23:59"` |
 | `category` | `assignment`, `lab`, `quiz`, `midterm`, `final`, or `other` | `"assignment"` |
 | `source_text` | string, the exact sentence from the syllabus | `"Assignment 2 is due October 15."` |
 | `weight` | number or null (optional), percent of final grade | `15` |
@@ -79,13 +80,16 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
   "course": "CMPUT 174",
   "title": "Assignment 2",
   "date": "2026-10-15",
+  "time": "23:59",
   "category": "assignment",
-  "source_text": "Assignment 2 is due October 15 and is worth 15% of your final grade.",
+  "source_text": "Assignment 2 is due October 15 at 11:59 PM and is worth 15% of your final grade.",
   "weight": 15
 }
 ```
 
 Saved deadlines can also be dates people add themselves on the calendar. Those have `source_text: null`, and personal ones (a dentist appointment, a shift) also have `course: null`, `category: "personal"` and `weight: null`. The parser never returns these, so `backend/models.py` doesn't have them. Anything keyed on course (study buddy, the course library) leaves personal items out. See [supabase/migrations/20261122000000_own_dates.sql](supabase/migrations/20261122000000_own_dates.sql).
+
+`time` is a time of day next to `date`, not a timestamp: everything that works on days (the sidebar, reminders, the unique key) only looks at `date`. A missing time is shown as no time, never as "11:59 PM". See [supabase/migrations/20261124120000_due_times.sql](supabase/migrations/20261124120000_due_times.sql).
 
 `POST /parse` and `POST /parse-pdf` return a `ParseResponse`:
 
@@ -130,6 +134,8 @@ Working on something else? You can skip all of this. Without `VITE_VAPID_PUBLIC_
    select vault.create_secret('<random string>', 'cohort_notify_secret');
    ```
 5. Add `VITE_VAPID_PUBLIC_KEY` to Vercel's environment variables and redeploy the frontend.
+
+Already set up before due times were added? Run [20261124120000_due_times.sql](supabase/migrations/20261124120000_due_times.sql), then redeploy the function (`supabase functions deploy send-notifications --no-verify-jwt`) so reminders say the time. [supabase/scripts/test_due_times.sql](supabase/scripts/test_due_times.sql) checks the migration.
 
 Check it's working: Supabase dashboard → Edge Functions → send-notifications → Logs. Each run logs how many notifications it sent. If you make new VAPID keys later, everyone has to turn notifications on again.
 
