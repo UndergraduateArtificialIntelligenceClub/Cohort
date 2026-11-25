@@ -179,6 +179,18 @@ def format_canvas_date(value: date | datetime) -> str:
     # Date-only values already identify the intended calendar day.
     return value.isoformat()
 
+
+def format_canvas_time(value: date | datetime) -> str | None:
+    # Canvas gives assignments an exact due time, so keep it as "HH:MM" Edmonton time (#93).
+    # All-day events are date-only and have no time, which the calendar shows as unknown.
+    if not isinstance(value, datetime):
+        return None
+
+    if value.tzinfo is not None:
+        value = value.astimezone(CANVAS_TIMEZONE)
+
+    return value.strftime("%H:%M")
+
 @lru_cache(maxsize=1)
 def get_client() -> genai.Client:
     """Create the Gemini client once, on first use, and reuse it after."""
@@ -412,6 +424,7 @@ def import_canvas(req: CanvasImportRequest, user: dict = Depends(require_user)):
                 course=course,
                 title=title,
                 date=format_canvas_date(start),
+                time=format_canvas_time(start),
                 category=infer_canvas_category(title),
                 source_text=summary,
                 weight=None,

@@ -1216,6 +1216,52 @@
     padding-block: var(--space-2);
   }
 
+  /* Import from Canvas panel on the Upload page (#62) */
+  .canvas {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .canvas-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .canvas-sub {
+    margin-top: var(--space-1);
+    font-size: var(--text-sm);
+  }
+
+  .canvas-form {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .canvas-form .input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .canvas-help {
+    font-size: var(--text-sm);
+  }
+
+  .canvas-help summary {
+    width: fit-content;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  .canvas-help ol {
+    margin: var(--space-2) 0;
+    padding-left: var(--space-5);
+    list-style: decimal;
+  }
+
   .add-grid {
     position: relative;
     display: grid;
@@ -1866,8 +1912,18 @@
   }
 
   .shared,
-  .paste {
+  .paste,
+  .canvas {
     padding: var(--space-3);
+  }
+
+  .canvas-form {
+    flex-direction: column;
+  }
+
+  /* flex: 1 would squash the field's height once the form is a column */
+  .canvas-form .input {
+    flex: none;
   }
 
   /* ----- Every popup becomes a bottom sheet, buttons in thumb reach ----- */
