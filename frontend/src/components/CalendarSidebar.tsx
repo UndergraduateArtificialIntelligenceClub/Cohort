@@ -12,6 +12,8 @@ import {
   weekStart,
   weightLabel,
   weightOf,
+  timeLabel,
+  whenLabel,
   type Week,
 } from "../lib/planner";
 import { loadDismissed, saveDismissed } from "../lib/finishAsk";
@@ -85,7 +87,9 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
       </button>
       <span className="side-row-when">
         {dayLabel(d.date, today)}
-        {d.weight != null && <small>{d.weight}%</small>}
+        {(d.time || d.weight != null) && (
+          <small>{[d.time && timeLabel(d.time), d.weight != null && `${d.weight}%`].filter(Boolean).join(" · ")}</small>
+        )}
       </span>
     </li>
   );
@@ -107,6 +111,7 @@ function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone,
             <p className="side-hero-meta">
               <strong>{countdown(plan.nextUp.date, today)}</strong>
               <span>{longDate(plan.nextUp.date)}</span>
+              {plan.nextUp.time && <span>{whenLabel(plan.nextUp)}</span>}
               {plan.nextUp.weight != null && <span>{plan.nextUp.weight}% of grade</span>}
             </p>
             <button type="button" className="btn btn-sm mt-3" onClick={() => onToggleDone(plan.nextUp!)}>

@@ -2059,6 +2059,12 @@ html:root {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* "11:59p" before the title, quieter so the title still reads first */
+.ev-time {
+  margin-right: 4px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Today */
 .cal-today {

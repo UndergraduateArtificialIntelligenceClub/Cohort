@@ -12,7 +12,7 @@ import CalendarSidebar from "../components/CalendarSidebar";
 import DeadlineModal from "../components/DeadlineModal";
 import NotificationPrompt from "../components/NotificationPrompt";
 import { IconPlus } from "../components/Icons";
-import { addDays, longDate, makeForecast, todayISO, toISO, WEEK_START } from "../lib/planner";
+import { addDays, bySchedule, longDate, makeForecast, shortTimeLabel, todayISO, toISO, WEEK_START } from "../lib/planner";
 import { useIsPhone } from "../lib/useIsPhone";
 
 import "@fullcalendar/react/skeleton.css";
@@ -39,8 +39,6 @@ function colorCourses(deadlines: Deadline[]): Record<string, string> {
 function draft(date: string): Deadline {
   return { course: "", title: "", date, category: "assignment", source_text: null, weight: null };
 }
-
-const byDate = (a: Deadline, b: Deadline) => a.date.localeCompare(b.date);
 
 function Calendar() {
   const [deadlines, setDeadlines] = useState<Deadline[] | null>(null);
@@ -114,12 +112,14 @@ function Calendar() {
   // Convert Deadline objects into FullCalendar events.
   const hasDeadlines = !!deadlines && deadlines.length > 0;
   const showList = isPhone && view === "list" && hasDeadlines;
-  const pickedDeadlines = (deadlines ?? []).filter((d) => d.date === pickedDay);
+  const pickedDeadlines = (deadlines ?? []).filter((d) => d.date === pickedDay).sort(bySchedule);
   const events = (deadlines ?? []).map((deadline) => ({
     title: deadline.title,
     date: deadline.date,
     extendedProps: {
       deadline,
+      // Within a day: earliest first, untimed ones last (eventOrder below)
+      timeOrder: deadline.time ?? "99",
     },
   }));
 
@@ -227,6 +227,7 @@ function Calendar() {
               height="auto"
               borderless
               eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
+              eventOrder="timeOrder,title"
               eventClass="cal-event"
               dayCellClass={(arg) => {
                 const date = toISO(arg.date);
@@ -245,7 +246,10 @@ function Calendar() {
                 // A tinted bar in the course color; done ones are grey and crossed out (.ev-pill in index.css)
                 return (
                   <span className={`ev-pill${deadline.done ? " is-done" : ""}`} style={courseVar(courseColors[courseLabel(deadline)])}>
-                    <span className="ev-text">{info.event.title}</span>
+                    <span className="ev-text">
+                      {deadline.time && <span className="ev-time">{shortTimeLabel(deadline.time)}</span>}
+                      {info.event.title}
+                    </span>
                   </span>
                 );
               }}
@@ -299,7 +303,7 @@ function Calendar() {
           onClose={() => setSelectedDeadline(null)}
           onSave={async (changes) => {
             const created = await addDeadline({ ...selectedDeadline, ...changes });
-            setDeadlines((current) => [...(current ?? []), created].sort(byDate));
+            setDeadlines((current) => [...(current ?? []), created].sort(bySchedule));
             setSelectedDeadline(null);
             // Phones: show the day it went on
             if (isPhone && view === "month") setPickedDay(created.date);
