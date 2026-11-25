@@ -113,30 +113,36 @@ def validate_canvas_url(url: str) -> None:
         raise HTTPException(status_code=400, detail="Please provide an HTTPS calendar feed URL from canvas.ualberta.ca.")
 
 
-def extract_canvas_course(title: str) -> str:
-    # Canvas places the subject and course number immediately after "[".
-    match = re.search(
-        r"\[([A-Z]+)\s+(\d{3})\b",
-        title,
-        flags=re.IGNORECASE,
-    )
+def extract_canvas_course(summary: str) -> str | None:
+    # Canvas puts the course in brackets after the event name, e.g. "Assignment 1 [CMPUT 174 ...]".
+    # Subjects can be more than one word ("MEC E 250", "CH E 243"), so allow spaces inside the subject.
+    match = re.search(r"\[\s*([A-Z]+(?:\s[A-Z]+)*)\s+(\d{3})\b", summary, flags=re.IGNORECASE)
 
     if match is None:
-        return "Unknown"
+        # No course tag usually means the student's own Canvas event. Return None so the caller skips it,
+        # instead of saving it under a made-up course that study buddy and the library would treat as real (#62).
+        return None
 
-    subject = match.group(1).upper()
-    number = match.group(2)
+    # Same rule as normalizeCourse() in frontend/src/lib/courses.ts: single spaces, upper case.
+    subject = " ".join(match.group(1).split()).upper()
+    return f"{subject} {match.group(2)}"
 
-    return f"{subject} {number}"
+
+def strip_canvas_course(summary: str) -> str:
+    # The calendar already shows the course, so drop the trailing "[CMPUT 174 ...]" from the title.
+    title = re.sub(r"\s*\[[^\]]*\]\s*$", "", summary).strip()
+    return title or summary.strip()
+
 
 def infer_canvas_category(title: str) -> str:
-    # Classify the assessment name without including course metadata.
-    assessment_title = title.split("[", 1)[0].lower()
+    # Classify the assessment name; the title has already had the course tag removed.
+    assessment_title = title.lower()
 
     if re.search(r"\bmid[\s-]?term\b", assessment_title):
         return "midterm"
 
-    if re.search(r"\bfinal\b", assessment_title):
+    # "Final project" or "final report" is coursework, not the final exam.
+    if re.search(r"\bfinal\b(?!\s+(?:project|paper|report|assignment|presentation))", assessment_title):
         return "final"
 
     if re.search(r"\bquiz(?:zes)?\b", assessment_title):
@@ -369,11 +375,14 @@ def import_canvas(req: CanvasImportRequest, user: dict = Depends(require_user)):
     deadlines = []
 
     for event in calendar.walk("VEVENT"):
-        summary = str(event.get("SUMMARY", ""))
-        title = summary.strip()
+        summary = str(event.get("SUMMARY", "")).strip()
+        course = extract_canvas_course(summary)
 
-        if not title:
+        # Skip events with no title or no course tag (see extract_canvas_course).
+        if not summary or course is None:
             continue
+
+        title = strip_canvas_course(summary)
 
         try:
             start = event.decoded("DTSTART")
@@ -387,7 +396,7 @@ def import_canvas(req: CanvasImportRequest, user: dict = Depends(require_user)):
 
         deadlines.append(
             Deadline(
-                course=extract_canvas_course(title),
+                course=course,
                 title=title,
                 date=format_canvas_date(start),
                 category=infer_canvas_category(title),
