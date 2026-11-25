@@ -1,6 +1,7 @@
 import os
 from datetime import date
 from functools import lru_cache
+from threading import Lock
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
@@ -11,6 +12,14 @@ from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader 
 
 from models import ParseResponse
+
+
+MAX_TEXT_LENGTH = 100_000
+MAX_PDF_SIZE = 10_000_000   # 10 MB limit
+MAX_DAILY_PARSES = 20
+daily_parse_counts = dict()
+
+parse_counts_lock = Lock()
 
 load_dotenv()
 MODEL = "gemini-3.5-flash-lite"
@@ -35,6 +44,20 @@ class ParseRequest(BaseModel):
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+
+def check_parse_allowance(user_id: str) -> None:
+    # Track each user's usage separately for each server calendar day.
+    key = (user_id, date.today())
+
+    # Keep checking and incrementing together so concurrent requests cannot claim the same remaining allowance.
+    with parse_counts_lock:
+        count = daily_parse_counts.get(key, 0)
+
+        if count >= MAX_DAILY_PARSES:
+            raise HTTPException(status_code=429, detail="You've hit today's upload limit, try again tomorrow")
+
+        daily_parse_counts[key] = count + 1
 
 
 def require_user(authorization: str | None = Header(default=None)) -> dict:
@@ -154,11 +177,34 @@ def home():
 def parse(req: ParseRequest, user: dict = Depends(require_user)):
     if req.text.strip() == "":
         raise HTTPException(status_code=400, detail="No syllabus text provided.")
+
+    if len(req.text) > MAX_TEXT_LENGTH:
+        raise HTTPException(status_code=413, detail="That text is too long. Please shorten it to 100,000 characters or fewer.")
+
+    if user:
+        check_parse_allowance(user["id"])
+
     return extract_deadlines(req.text)
 
 
 @app.post("/parse-pdf", response_model=ParseResponse)
 def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
+    file_size = file.size
+
+    # If upload metadata has no size, measure the underlying binary file.
+    if file_size is None:
+        original_position = file.file.tell()
+
+        try:
+            file.file.seek(0, 2)  # Move to the end, where the byte position equals the size.
+            file_size = file.file.tell()
+        finally:
+            # Restore the position so subsequent reads start where expected.
+            file.file.seek(original_position)
+
+    if file_size > MAX_PDF_SIZE:
+        raise HTTPException(status_code=413, detail="That PDF is too big, try pasting the text.")
+    
     try:
         reader = PdfReader(file.file)
         text = ""
@@ -178,6 +224,9 @@ def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
             status_code=400, 
             detail="Couldn't read this PDF, try pasting the text."
         )
+
+    if user:
+        check_parse_allowance(user["id"])
 
     return extract_deadlines(text)
 
