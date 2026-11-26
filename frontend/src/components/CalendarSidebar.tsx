@@ -1,25 +1,13 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type CSSProperties } from "react";
+import { Link } from "react-router";
 import type { Deadline } from "../types";
-import { courseLabel } from "../lib/courses";
-import {
-  courseCount,
-  dayLabel,
-  daysUntil,
-  longDate,
-  makeForecast,
-  makePlan,
-  weekLabel,
-  weekStart,
-  weightLabel,
-  weightOf,
-  timeLabel,
-  whenLabel,
-  type Week,
-} from "../lib/planner";
-import { loadDismissed, saveDismissed } from "../lib/finishAsk";
+import { courseLabel, isPersonal } from "../lib/courses";
+import { dayLabel, fullDate, longDate, makeAgenda, timeLabel } from "../lib/planner";
+import { loadDismissed } from "../lib/finishAsk";
+import { IconCheck } from "./Icons";
 
-// The panel next to the calendar: Next up, This week, and the Crunch forecast (hell week).
-// The rules live in lib/planner.ts; this file only draws them.
+// The panel next to the calendar: one 7-day agenda, grouped by day. The rules live in
+// lib/planner.ts (makeAgenda); this file only draws them. The heaviest week is shown on the grid itself.
 
 type Props = {
   deadlines: Deadline[];
@@ -28,257 +16,142 @@ type Props = {
   onOpen: (d: Deadline) => void; // open the deadline popup
   onToggleDone: (d: Deadline) => void;
   onHoverDate: (date: string | null) => void; // outline that day on the grid
-  onShowWeek: (start: string) => void; // move the grid to that week
 };
 
-// How many rows "This week" shows before "+N more"
-const ROW_CAP = 5;
+// How many rows show before "N more by ...". One extra row is shown instead of a "1 more" link.
+const ROW_CAP = 6;
+// Worth this much of the grade or more: the weight is highlighted and a study buddy link is offered
+const HEAVY_WEIGHT = 20;
 
 const courseVar = (color: string | undefined) => ({ "--c": color }) as CSSProperties;
 
-function countdown(date: string, today: string): string {
-  const days = daysUntil(date, today);
-  if (days === 0) return "Due today";
-  if (days === 1) return "Due tomorrow";
-  return `In ${days} days`;
+const isExam = (d: Deadline) => d.category === "midterm" || d.category === "final";
+const isHeavy = (d: Deadline) => d.weight != null && d.weight >= HEAVY_WEIGHT;
+const rowKey = (d: Deadline) => d.id ?? `${courseLabel(d)}-${d.title}-${d.date}`;
+
+function summary(leftToday: number, later: number): string {
+  if (leftToday === 0) return later === 0 ? "Nothing due in the next 7 days" : `Nothing left today · ${later} in the next 7 days`;
+  return `${leftToday} left today · ${later === 0 ? "nothing else" : `${later} more`} in the next 7 days`;
 }
 
-function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone, onHoverDate, onShowWeek }: Props) {
-  const [dismissed, setDismissed] = useState(loadDismissed);
+function CalendarSidebar({ deadlines, courseColors, today, onOpen, onToggleDone, onHoverDate }: Props) {
+  // "No" answers to "Did you finish?" on the phone list also hide those from Overdue here
+  const [dismissed] = useState(loadDismissed);
   const [showAll, setShowAll] = useState(false);
   const [showDone, setShowDone] = useState(false);
 
-  const plan = makePlan(deadlines, today, dismissed);
-  const forecast = makeForecast(deadlines, today);
+  const agenda = makeAgenda(deadlines, today, dismissed);
 
-  function dismiss(d: Deadline) {
-    if (!d.id) return;
-    const next = new Set(dismissed).add(d.id);
-    setDismissed(next);
-    saveDismissed(next);
-  }
+  // Cap the rows across all days, keeping their order
+  const all = agenda.days.flatMap((day) => [...day.overdue, ...day.items]);
+  const capped = !showAll && all.length > ROW_CAP + 1;
+  const visible = new Set(capped ? all.slice(0, ROW_CAP) : all);
+  const hidden = all.length - visible.size;
+  const expandable = all.length > ROW_CAP + 1;
 
-  // Course code next to the dot, so courses are told apart by more than color
-  const course = (d: Deadline) => (
-    <span className="side-course" style={courseVar(courseColors[courseLabel(d)])}>
-      <i className="dot" />
-      {courseLabel(d)}
-    </span>
-  );
-
-  // One deadline in a list. Hovering outlines its day on the grid; clicking opens it.
-  const row = (d: Deadline) => (
+  // One deadline. Hovering outlines its day on the grid; clicking the title opens it.
+  // withDay: the done list isn't grouped by day, so its rows name the day.
+  const row = (d: Deadline, { overdue = false, withDay = false } = {}) => (
     <li
-      key={d.id ?? `${courseLabel(d)}-${d.title}-${d.date}`}
+      key={rowKey(d)}
       className={`side-row${d.done ? " is-done" : ""}`}
       onMouseEnter={() => onHoverDate(d.date)}
       onMouseLeave={() => onHoverDate(null)}
     >
-      <input
-        type="checkbox"
-        className="checkbox"
-        checked={!!d.done}
-        onChange={() => onToggleDone(d)}
-        aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${courseLabel(d)} ${d.title}`}
-      />
-      <button type="button" className="side-row-main" onClick={() => onOpen(d)}>
-        <span className="side-row-title">{d.title}</span>
-        {course(d)}
+      <button
+        type="button"
+        className="tick"
+        aria-label={`Mark ${d.title} ${d.done ? "not done" : "done"}`}
+        onClick={() => onToggleDone(d)}
+      >
+        {d.done && <IconCheck size={14} />}
       </button>
-      <span className="side-row-when">
-        {dayLabel(d.date, today)}
-        {(d.time || d.weight != null) && (
-          <small>{[d.time && timeLabel(d.time), d.weight != null && `${d.weight}%`].filter(Boolean).join(" · ")}</small>
+      <div className="side-row-text">
+        <div className="side-row-top">
+          {overdue && <span className="side-tag">Overdue</span>}
+          <button type="button" className="side-row-title" onClick={() => onOpen(d)} title={d.title}>
+            {d.title}
+          </button>
+        </div>
+        <p className="side-meta">
+          <span className="side-course" style={courseVar(courseColors[courseLabel(d)])}>
+            <i className="dot" />
+            {courseLabel(d)}
+          </span>
+          {(overdue || withDay) && <span>{dayLabel(d.date, today)}</span>}
+          {d.time && <span>{isExam(d) ? `Starts ${timeLabel(d.time)}` : timeLabel(d.time)}</span>}
+          {d.weight != null && <span className={isHeavy(d) ? "side-heavy" : undefined}>{d.weight}% of grade</span>}
+        </p>
+        {/* Heavy ones are where a study partner helps most. Study buddy has no course filter, so this opens the tab. */}
+        {isHeavy(d) && !d.done && !isPersonal(d) && (
+          <Link to="/study-buddy" className="side-buddy">
+            Find a study buddy in {courseLabel(d)} →
+          </Link>
         )}
-      </span>
+      </div>
     </li>
   );
 
-  const shown = showAll ? plan.thisWeek : plan.thisWeek.slice(0, ROW_CAP);
-  const hidden = plan.thisWeek.length - shown.length;
-
   return (
-    <aside className="side panel" aria-label="Your week">
-      {/* ---------- Next up ---------- */}
-      <section className="side-sec">
-        <h2 className="side-h">Next up</h2>
-        {plan.nextUp ? (
-          <div className="side-hero" style={courseVar(courseColors[courseLabel(plan.nextUp)])}>
-            {course(plan.nextUp)}
-            <button type="button" className="side-hero-title" onClick={() => onOpen(plan.nextUp!)}>
-              {plan.nextUp.title}
-            </button>
-            <p className="side-hero-meta">
-              <strong>{countdown(plan.nextUp.date, today)}</strong>
-              <span>{longDate(plan.nextUp.date)}</span>
-              {plan.nextUp.time && <span>{whenLabel(plan.nextUp)}</span>}
-              {plan.nextUp.weight != null && <span>{plan.nextUp.weight}% of grade</span>}
-            </p>
-            <button type="button" className="btn btn-sm mt-3" onClick={() => onToggleDone(plan.nextUp!)}>
-              ✓ Mark done
-            </button>
-          </div>
-        ) : (
-          <div className="side-calm">
-            <p className="side-calm-title">Nothing due in the next few days.</p>
-            {plan.later ? (
-              <p className="muted">
-                Next:{" "}
-                <button type="button" className="link-button" onClick={() => onOpen(plan.later!)}>
-                  {plan.later.title}
-                </button>{" "}
-                ({courseLabel(plan.later)}), {longDate(plan.later.date)}
-              </p>
-            ) : (
-              <p className="muted">You're all caught up.</p>
+    <aside className="side panel" aria-labelledby="side-title">
+      <header className="side-head">
+        <h2 id="side-title" className="side-title">
+          {fullDate(today)}
+        </h2>
+        <p className="side-sub">{summary(agenda.leftToday, agenda.laterThisWeek)}</p>
+      </header>
+
+      {agenda.days.map((day, i) => {
+        const overdue = day.overdue.filter((d) => visible.has(d));
+        const items = day.items.filter((d) => visible.has(d));
+        const empty = day.overdue.length + day.items.length === 0;
+        // Today and tomorrow always show; a day whose rows are all past the cap is left for "N more"
+        if (!empty && overdue.length + items.length === 0) return null;
+        const label = i === 0 ? "Today" : longDate(day.date);
+        return (
+          <section key={day.date} className="side-day" aria-label={i === 0 ? `Today, ${longDate(day.date)}` : label}>
+            <div className="side-day-head">
+              <h3 className={`side-day-label${i === 0 ? " is-today" : ""}`}>{label}</h3>
+              {empty && <span className="side-clear">Clear</span>}
+            </div>
+            {!empty && (
+              <ul className={`rows${i === 0 ? " side-card" : ""}`}>
+                {overdue.map((d) => row(d, { overdue: true }))}
+                {items.map((d) => row(d))}
+              </ul>
             )}
-          </div>
-        )}
-      </section>
+          </section>
+        );
+      })}
 
-      {/* ---------- Did you finish? (unticked deadlines 1–3 days late) ---------- */}
-      {plan.askFinished.length > 0 && (
-        <section className="side-sec side-ask" aria-label="Did you finish these?">
-          <h2 className="side-h">Did you finish?</h2>
-          <ul className="rows">
-            {plan.askFinished.map((d) => (
-              <li key={d.id} className="side-ask-row">
-                <button type="button" className="side-row-main" onClick={() => onOpen(d)}>
-                  <span className="side-row-title">{d.title}</span>
-                  <span className="side-row-sub">
-                    {course(d)} · {dayLabel(d.date, today)}
-                  </span>
-                </button>
-                <button type="button" className="btn btn-sm" onClick={() => onToggleDone(d)}>
-                  Yes
-                </button>
-                <button type="button" className="btn btn-quiet btn-sm" onClick={() => dismiss(d)}>
-                  No
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ---------- This week ---------- */}
-      <section className="side-sec">
-        <div className="side-h-row">
-          <h2 className="side-h">This week</h2>
-          {plan.thisWeek.length > 0 && <span className="side-count">{plan.thisWeek.length}</span>}
-        </div>
-        {plan.thisWeek.length === 0 && (
-          <p className="muted side-note">{plan.nextUp ? "Nothing else in the next 7 days." : "Nothing in the next 7 days."}</p>
-        )}
-        <ul className="rows">{shown.map(row)}</ul>
-        {hidden > 0 && (
-          <button type="button" className="side-more" onClick={() => setShowAll(true)}>
-            +{hidden} more
-          </button>
-        )}
-        {plan.doneThisWeek.length > 0 && (
-          <>
+      {(expandable || agenda.done.length > 0) && (
+        <footer className="side-foot">
+          {expandable ? (
+            <button type="button" className="side-link" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
+              {capped ? `${hidden} more by ${longDate(all[all.length - 1].date)}` : "Show less"}
+            </button>
+          ) : (
+            <span />
+          )}
+          {agenda.done.length > 0 && (
             <button
               type="button"
-              className="side-more"
+              className="side-done-toggle"
               aria-expanded={showDone}
+              aria-controls="side-done"
               onClick={() => setShowDone((v) => !v)}
             >
-              ✓ {plan.doneThisWeek.length} done {showDone ? "▾" : "▸"}
+              {agenda.done.length} done <span className="side-chev" aria-hidden="true">›</span>
             </button>
-            {showDone && <ul className="rows">{plan.doneThisWeek.map(row)}</ul>}
-          </>
-        )}
-      </section>
-
-      {/* ---------- Crunch forecast ---------- */}
-      {forecast.busiest && <Forecast forecast={forecast} today={today} course={course} onOpen={onOpen} onShowWeek={onShowWeek} />}
-    </aside>
-  );
-}
-
-type ForecastProps = {
-  forecast: ReturnType<typeof makeForecast>;
-  today: string;
-  course: (d: Deadline) => ReactNode;
-  onOpen: (d: Deadline) => void;
-  onShowWeek: (start: string) => void;
-};
-
-function Forecast({ forecast, today, course, onOpen, onShowWeek }: ForecastProps) {
-  const { weeks, busiest, hell, startEarly } = forecast;
-  const focus = hell ?? busiest!;
-  const max = Math.max(...weeks.map((w) => w.load));
-  const listed = focus.items.slice(0, 4);
-  const anyGuessed = listed.some((d) => weightOf(d).guessed);
-  const thisWeek = weekStart(today);
-
-  const barLabel = (w: Week) =>
-    `${w.start === thisWeek ? "This week" : weekLabel(w.start)}: ${
-      w.items.length === 0 ? "nothing due" : `${w.items.length} due across ${courseCount(w.items)} course${courseCount(w.items) === 1 ? "" : "s"}`
-    }${w === hell ? " (hell week)" : ""}`;
-
-  return (
-    <section className="side-sec">
-      <h2 className="side-h">Crunch forecast</h2>
-      {/* Next 8 weeks, bar height = how heavy the week is compared with the others */}
-      <div className="spark" role="group" aria-label="Load over the next 8 weeks">
-        {weeks.map((w) => (
-          <button
-            key={w.start}
-            type="button"
-            className={`spark-bar${w === hell ? " is-hell" : ""}${w === focus ? " is-focus" : ""}`}
-            title={barLabel(w)}
-            aria-label={`${barLabel(w)}. Show on calendar`}
-            onClick={() => onShowWeek(w.start)}
-          >
-            <span style={{ height: w.load === 0 ? 2 : `${Math.max(12, (w.load / max) * 100)}%` }} />
-          </button>
-        ))}
-      </div>
-      <div className="spark-axis">
-        <span>This week</span>
-        <span>+7 weeks</span>
-      </div>
-
-      <div className={`crunch${hell ? " is-hell" : ""}`}>
-        <p className="crunch-title">
-          {hell ? <span className="hell-tag">Hell week</span> : <span className="muted">No hell week coming up. Busiest:</span>}{" "}
-          <button type="button" className="link-button" onClick={() => onShowWeek(focus.start)}>
-            {focus.start === thisWeek ? "this week" : weekLabel(focus.start)}
-          </button>
-        </p>
-        {/* Weights are per course, so they're shown per deadline and never added up into one percent */}
-        <p className="crunch-sum">
-          {focus.items.length} due across {courseCount(focus.items)} course{courseCount(focus.items) === 1 ? "" : "s"}
-        </p>
-        <ul className="rows crunch-list">
-          {listed.map((d) => (
-            <li key={d.id ?? `${courseLabel(d)}-${d.title}`}>
-              <button type="button" className={`crunch-item${d.done ? " is-done" : ""}`} onClick={() => onOpen(d)}>
-                {course(d)}
-                <span className="crunch-item-title">{d.title}</span>
-                <span className="crunch-item-w">{weightLabel(d)}</span>
-              </button>
-            </li>
-          ))}
+          )}
+        </footer>
+      )}
+      {showDone && agenda.done.length > 0 && (
+        <ul id="side-done" className="rows side-done" aria-label="Done in the next 7 days">
+          {agenda.done.map((d) => row(d, { withDay: true }))}
         </ul>
-        {focus.items.length > listed.length && (
-          <button type="button" className="side-more" onClick={() => onShowWeek(focus.start)}>
-            +{focus.items.length - listed.length} more on the calendar
-          </button>
-        )}
-        {hell && startEarly && (
-          <p className="crunch-tip">
-            Biggest one: <strong>{startEarly.title}</strong> ({courseLabel(startEarly)}),{" "}
-            {hell.start === thisWeek
-              ? `due ${dayLabel(startEarly.date, today).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}.`
-              : `${["quiz", "midterm", "final"].includes(startEarly.category) ? "start studying" : "start it"} before that week.`}
-          </p>
-        )}
-        {anyGuessed && <p className="crunch-foot">~ guessed from the type. The syllabus didn't give a weight.</p>}
-      </div>
-    </section>
+      )}
+    </aside>
   );
 }
 
