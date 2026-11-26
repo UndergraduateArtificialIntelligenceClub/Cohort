@@ -222,18 +222,15 @@ export type Forecast = {
   startEarly: Deadline | null; // the biggest unfinished thing due in hell week
 };
 
-export function makeForecast(deadlines: Deadline[], today: string): Forecast {
+// openOnly: weigh the weeks ahead by what's still to do (not done, today or later), so a week you've mostly
+// finished stops being the heaviest, and the calendar's label agrees with the sidebar. The "usual week" is
+// still worked out from the whole term, done or not, so it stays a fair yardstick to the very last week.
+export function makeForecast(deadlines: Deadline[], today: string, { openOnly = false } = {}): Forecast {
   // Every week of the student's term that has anything due, past ones too. Only schoolwork counts.
-  const byWeek = new Map<string, Week>();
-  for (const d of deadlines) {
-    if (isPersonal(d)) continue;
-    const start = weekStart(d.date);
-    const week = byWeek.get(start) ?? { start, load: 0, items: [] };
-    week.load += weightOf(d);
-    week.items.push(d);
-    byWeek.set(start, week);
-  }
-  for (const week of byWeek.values()) week.items.sort((a, b) => weightOf(b) - weightOf(a));
+  const byWeek = groupByWeek(deadlines.filter((d) => !isPersonal(d)));
+  const counted = openOnly
+    ? groupByWeek(deadlines.filter((d) => !isPersonal(d) && !d.done && daysUntil(d.date, today) >= 0))
+    : byWeek;
 
   // "Usual week" = median of the weeks that have something due. Empty weeks (reading week,
   // the gap before finals) are left out, or the median drops to 0 and every week looks like hell.
@@ -244,7 +241,7 @@ export function makeForecast(deadlines: Deadline[], today: string): Forecast {
   const first = weekStart(today);
   const weeks = Array.from({ length: FORECAST_WEEKS }, (_, i) => {
     const start = addDays(first, i * 7);
-    return byWeek.get(start) ?? { start, load: 0, items: [] };
+    return counted.get(start) ?? { start, load: 0, items: [] };
   });
 
   // Earliest wins a tie: it's the one to worry about first
@@ -253,6 +250,20 @@ export function makeForecast(deadlines: Deadline[], today: string): Forecast {
   const startEarly = hell?.items.find((d) => !d.done && daysUntil(d.date, today) >= 0) ?? null;
 
   return { weeks, busiest, hell, startEarly };
+}
+
+// Week start -> that week's deadlines (heaviest first) and their summed weight
+function groupByWeek(deadlines: Deadline[]): Map<string, Week> {
+  const byWeek = new Map<string, Week>();
+  for (const d of deadlines) {
+    const start = weekStart(d.date);
+    const week = byWeek.get(start) ?? { start, load: 0, items: [] };
+    week.load += weightOf(d);
+    week.items.push(d);
+    byWeek.set(start, week);
+  }
+  for (const week of byWeek.values()) week.items.sort((a, b) => weightOf(b) - weightOf(a));
+  return byWeek;
 }
 
 // How many different courses a set of deadlines covers (personal items aren't a course)

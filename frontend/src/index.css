@@ -483,15 +483,188 @@
     color: var(--surface);
   }
 
-  /* A number at the end of a chip, e.g. how many are left in a course */
-  .chip-count {
-    color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
+  /* Course chips under the Calendar title (components/CalendarFilters.tsx). Each chip is two buttons:
+     the color dot (opens ColorPopover) and the name (shows or hides the course). */
+  .cal-filters {
+    margin: calc(var(--space-3) - var(--space-5)) 0 var(--space-4);
   }
 
-  /* Calendar: the course chips get a row of their own under the title */
-  .cal-chips {
-    margin: calc(var(--space-3) - var(--space-5)) 0 var(--space-4);
+  .chip.cal-course {
+    position: relative;
+    gap: 0;
+    padding: 0;
+  }
+
+  .cal-course-dot,
+  .cal-course-name {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+
+  /* The dot's button is wider than the dot, so it's easy to hit */
+  .cal-course-dot {
+    justify-content: center;
+    width: 26px;
+    padding: 0 0 0 4px;
+  }
+
+  button.cal-course-dot {
+    cursor: pointer;
+  }
+
+  .cal-course-dot .dot {
+    transition: box-shadow var(--duration) var(--ease), transform var(--duration) var(--ease);
+  }
+
+  /* Hovering the dot rings it, so it reads as something you can click */
+  button.cal-course-dot:hover .dot,
+  button.cal-course-dot[aria-expanded="true"] .dot {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--c);
+  }
+
+  .cal-course-name {
+    padding: 0 10px 0 4px;
+    cursor: pointer;
+  }
+
+  .chip.cal-course:has(.cal-course-name:hover) {
+    border-color: var(--border-hover);
+  }
+
+  /* Hidden course: grey dot, faded name */
+  .chip.cal-course.is-hidden {
+    background: transparent;
+    color: var(--ink-3);
+  }
+
+  .chip.cal-course.is-hidden .dot {
+    background: var(--border-strong);
+  }
+
+  .chip.cal-course.is-hidden .cal-course-name {
+    opacity: 0.7;
+  }
+
+  .cal-filter-note {
+    margin-top: var(--space-2);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  .cal-filter-clear {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .cal-filter-clear:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* The palette under a course chip (components/ColorPopover.tsx): 6 to a row */
+  .color-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(6, 26px);
+    gap: 8px;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    animation: rise-in var(--duration) var(--ease);
+  }
+
+  .color-pop.is-right {
+    right: 0;
+    left: auto;
+  }
+
+  .swatch {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--c);
+    color: var(--surface);
+    cursor: pointer;
+    transition: box-shadow var(--duration) var(--ease);
+  }
+
+  .swatch:hover {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--border-strong);
+  }
+
+  .swatch[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c);
+  }
+
+  /* Hide done: a small switch in the calendar's header, next to Today */
+  .cal-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: var(--control);
+    margin-right: var(--space-2);
+    padding: 0 var(--space-1);
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .cal-switch:hover {
+    color: var(--ink);
+  }
+
+  .cal-switch-track {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--border-strong);
+    transition: background var(--duration) var(--ease);
+  }
+
+  .cal-switch-track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .cal-switch[aria-checked="true"] .cal-switch-track {
+    background: var(--accent);
+  }
+
+  .cal-switch[aria-checked="true"] .cal-switch-track::after {
+    transform: translateX(12px);
   }
 
   /* A study buddy's first letter in a circle (components/Avatar.tsx) */

@@ -91,6 +91,8 @@ Saved deadlines can also be dates people add themselves on the calendar. Those h
 
 `time` is a time of day next to `date`, not a timestamp: everything that works on days (the sidebar, reminders, the unique key) only looks at `date`. A missing time is shown as no time, never as "11:59 PM". See [supabase/migrations/20261124120000_due_times.sql](supabase/migrations/20261124120000_due_times.sql).
 
+Each person's course colors are saved in `course_colors`, so adding or removing a course never changes the others' colors, and clicking a course chip's color dot above the calendar picks a new one (clicking the course name shows or hides that course). A saved color is a position in the 12-color palette in [frontend/src/lib/courseColors.ts](frontend/src/lib/courseColors.ts), not a hex value. Run [supabase/migrations/20261126120000_course_colors.sql](supabase/migrations/20261126120000_course_colors.sql) in the SQL Editor to turn this on. Until then the calendar uses the old alphabetical colors, and picking a color shows an error.
+
 `POST /parse` and `POST /parse-pdf` return a `ParseResponse`:
 
 ```
