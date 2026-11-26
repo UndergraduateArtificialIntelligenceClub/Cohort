@@ -1,10 +1,11 @@
 import type { Category, Deadline } from "../types";
 import { isPersonal } from "./courses";
 
-// The rules behind the calendar sidebar (components/CalendarSidebar.tsx): what's next, what's this week,
-// and which week coming up is the heaviest ("hell week"). No UI and no Supabase here, just plain functions.
-// Personal items (no course) show up in This week, but never in Next up, "Did you finish?" or the forecast:
-// those are about schoolwork.
+// The rules behind the calendar sidebar (components/CalendarSidebar.tsx) and the phone list
+// (components/AgendaList.tsx): what's due in the next 7 days, what's next, and which week coming up is the
+// heaviest ("hell week"). No UI and no Supabase here, just plain functions.
+// Personal items (no course) show up in the 7-day lists, but never in Next up, Overdue / "Did you finish?"
+// or the forecast: those are about schoolwork.
 
 // ---------- Dates ----------
 // Deadlines are "YYYY-MM-DD" in the student's own time zone. Day maths runs on whole UTC days,
@@ -67,6 +68,11 @@ export function longDate(iso: string): string {
   return fmt(iso, { weekday: "short", month: "short", day: "numeric" });
 }
 
+// "Thursday, Nov 21", the sidebar's heading
+export function fullDate(iso: string): string {
+  return fmt(iso, { weekday: "long", month: "short", day: "numeric" });
+}
+
 // ---------- Times ----------
 // A deadline's time is "HH:MM" in Edmonton, shown as written: never converted, never used in day maths.
 // null means the syllabus didn't say, so nothing is shown (it's never treated as "11:59 PM").
@@ -103,7 +109,7 @@ export function weekLabel(start: string): string {
 
 // ---------- Weights ----------
 // Many syllabi don't give a weight. For the forecast, guess one from the category.
-// Guesses are always shown with "~" so they never look like real numbers.
+// Guesses are only used to compare weeks and sort, never shown, so they can't be mistaken for real numbers.
 const GUESSED_WEIGHT: Record<Category, number> = {
   final: 30,
   midterm: 20,
@@ -113,16 +119,9 @@ const GUESSED_WEIGHT: Record<Category, number> = {
   lab: 3,
 };
 
-export function weightOf(d: Deadline): { value: number; guessed: boolean } {
-  if (d.category === "personal") return { value: 0, guessed: false };
-  if (d.weight != null) return { value: d.weight, guessed: false };
-  return { value: GUESSED_WEIGHT[d.category], guessed: true };
-}
-
-// "15%" when the syllabus says so, "~8%" when guessed
-export function weightLabel(d: Deadline): string {
-  const { value, guessed } = weightOf(d);
-  return `${guessed ? "~" : ""}${value}%`;
+export function weightOf(d: Deadline): number {
+  if (d.category === "personal") return 0;
+  return d.weight ?? GUESSED_WEIGHT[d.category];
 }
 
 // ---------- Next up and this week ----------
@@ -135,7 +134,7 @@ export const WEEK_DAYS = 7;
 export const ASK_DAYS = 3;
 
 // A 9 AM quiz is next up before an assignment due at 11:59 PM the same day
-const soonestFirst = (a: Deadline, b: Deadline) => bySchedule(a, b) || weightOf(b).value - weightOf(a).value;
+const soonestFirst = (a: Deadline, b: Deadline) => bySchedule(a, b) || weightOf(b) - weightOf(a);
 
 export type Plan = {
   nextUp: Deadline | null; // soonest unfinished school deadline in the next 5 days
@@ -156,10 +155,50 @@ export function makePlan(deadlines: Deadline[], today: string, dismissed: Set<st
     later: nextUp ? null : (openSchool[0] ?? null),
     thisWeek: open.filter((d) => d !== nextUp && inWeek(d)),
     doneThisWeek: sorted.filter((d) => d.done && daysUntil(d.date, today) >= 0 && inWeek(d)),
-    askFinished: sorted.filter((d) => {
-      const late = -daysUntil(d.date, today);
-      return !d.done && !isPersonal(d) && late >= 1 && late <= ASK_DAYS && !(d.id && dismissed.has(d.id));
-    }),
+    askFinished: sorted.filter((d) => isRecentlyLate(d, today, dismissed)),
+  };
+}
+
+// An unfinished school deadline 1 to 3 days late that the student hasn't said "No" to on their phone
+function isRecentlyLate(d: Deadline, today: string, dismissed: Set<string>): boolean {
+  const late = -daysUntil(d.date, today);
+  return !d.done && !isPersonal(d) && late >= 1 && late <= ASK_DAYS && !(d.id && dismissed.has(d.id));
+}
+
+// ---------- 7-day agenda (desktop sidebar) ----------
+export type AgendaDay = {
+  date: string;
+  overdue: Deadline[]; // only on today: recently late ones, the same rule as "Did you finish?"
+  items: Deadline[]; // unfinished ones due that day, soonest first
+};
+
+export type Agenda = {
+  days: AgendaDay[]; // today and tomorrow always (they may be empty), later days only when something is due
+  leftToday: number; // unfinished today, overdue included
+  laterThisWeek: number; // unfinished in the 6 days after today
+  done: Deadline[]; // finished ones due today through 6 days from now
+};
+
+// Late ones stop showing after ASK_DAYS, so a term of unticked deadlines never piles up at the top.
+export function makeAgenda(deadlines: Deadline[], today: string, dismissed: Set<string>): Agenda {
+  const sorted = [...deadlines].sort(soonestFirst);
+  const inWindow = (d: Deadline) => daysUntil(d.date, today) >= 0 && daysUntil(d.date, today) < WEEK_DAYS;
+  const open = sorted.filter((d) => !d.done && inWindow(d));
+  const overdue = sorted.filter((d) => isRecentlyLate(d, today, dismissed));
+
+  const days: AgendaDay[] = [];
+  for (let i = 0; i < WEEK_DAYS; i++) {
+    const date = addDays(today, i);
+    const items = open.filter((d) => d.date === date);
+    if (i < 2 || items.length > 0) days.push({ date, overdue: i === 0 ? overdue : [], items });
+  }
+  const leftToday = days[0].overdue.length + days[0].items.length;
+
+  return {
+    days,
+    leftToday,
+    laterThisWeek: open.length - days[0].items.length,
+    done: sorted.filter((d) => d.done && inWindow(d)),
   };
 }
 
@@ -190,11 +229,11 @@ export function makeForecast(deadlines: Deadline[], today: string): Forecast {
     if (isPersonal(d)) continue;
     const start = weekStart(d.date);
     const week = byWeek.get(start) ?? { start, load: 0, items: [] };
-    week.load += weightOf(d).value;
+    week.load += weightOf(d);
     week.items.push(d);
     byWeek.set(start, week);
   }
-  for (const week of byWeek.values()) week.items.sort((a, b) => weightOf(b).value - weightOf(a).value);
+  for (const week of byWeek.values()) week.items.sort((a, b) => weightOf(b) - weightOf(a));
 
   // "Usual week" = median of the weeks that have something due. Empty weeks (reading week,
   // the gap before finals) are left out, or the median drops to 0 and every week looks like hell.

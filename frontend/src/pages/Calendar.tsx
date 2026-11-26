@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { addDeadline, deleteCourse, deleteDeadline, loadDeadlines, setDone, updateDeadline } from "../lib/deadlines";
 import { courseLabel, isPersonal, PERSONAL_LABEL } from "../lib/courses";
 import type { Deadline } from "../types";
-import FullCalendar, { type CalendarRef } from "@fullcalendar/react";
+import FullCalendar from "@fullcalendar/react";
 import themePlugin from "@fullcalendar/react/themes/monarch";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
@@ -12,7 +12,7 @@ import CalendarSidebar from "../components/CalendarSidebar";
 import DeadlineModal from "../components/DeadlineModal";
 import NotificationPrompt from "../components/NotificationPrompt";
 import { IconPlus } from "../components/Icons";
-import { addDays, bySchedule, longDate, makeForecast, shortTimeLabel, todayISO, toISO, WEEK_START } from "../lib/planner";
+import { addDays, bySchedule, courseCount, longDate, makeForecast, shortTimeLabel, todayISO, toISO, weekLabel, WEEK_START } from "../lib/planner";
 import { useIsPhone } from "../lib/useIsPhone";
 
 import "@fullcalendar/react/skeleton.css";
@@ -47,8 +47,6 @@ function Calendar() {
   const [selectedDeadline, setSelectedDeadline] = useState<Deadline | null>(null);
   // The day a sidebar row is hovered over, outlined on the grid
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
-  const calendarRef = useRef<CalendarRef>(null);
-  const calendarPanel = useRef<HTMLElement>(null);
   // Phones: a list of what's coming (components/AgendaList.tsx) or the month grid with the tapped day's
   // deadlines under it. Desktop always shows the grid with the sidebar.
   const isPhone = useIsPhone();
@@ -84,31 +82,30 @@ function Calendar() {
     }
   }
 
-  // Sidebar's forecast: move the grid to that week and bring it into view (it sits below the sidebar on tablets).
-  // On phones the list's hell week card switches to Month and picks that week's first deadline.
+  // The phone list's hell week card: switch to Month on that week and pick its first deadline
   function showWeek(start: string) {
-    if (isPhone) {
-      const first = (deadlines ?? [])
-        .map((d) => d.date)
-        .filter((date) => date >= start && date <= addDays(start, 6))
-        .sort()[0];
-      setGridDate(start);
-      setPickedDay(first ?? start);
-      setView("month");
-      window.scrollTo({ top: 0 });
-      return;
-    }
-    calendarRef.current?.getApi().gotoDate(start);
-    calendarPanel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const first = (deadlines ?? [])
+      .map((d) => d.date)
+      .filter((date) => date >= start && date <= addDays(start, 6))
+      .sort()[0];
+    setGridDate(start);
+    setPickedDay(first ?? start);
+    setView("month");
+    window.scrollTo({ top: 0 });
   }
 
   const courseColors = colorCourses(deadlines ?? []);
   // Suggestions for the popup's course box
   const myCourses = Object.keys(courseColors).filter((c) => c !== PERSONAL_LABEL);
   const today = todayISO();
-  // Tint the hell week's row on the grid, if there is one
+  // The heaviest week coming up (hell week, lib/planner.ts), if there is one: its row on the grid is tinted
+  // and labeled. The forecast starts at this week, so it's never a week that's already over.
   const hell = makeForecast(deadlines ?? [], today).hell;
   const inHellWeek = (date: string) => !!hell && date >= hell.start && date <= addDays(hell.start, 6);
+  const hellCourses = hell ? courseCount(hell.items) : 0;
+  const hellLabel = hell && `Heaviest week ahead · ${hell.items.length} due across ${hellCourses} course${hellCourses === 1 ? "" : "s"}`;
+  const showHellLabel = !!hell && !isPhone;
+  const isHellStart = (date: Date) => !!hell && toISO(date) === hell.start;
   // Convert Deadline objects into FullCalendar events.
   const hasDeadlines = !!deadlines && deadlines.length > 0;
   const showList = isPhone && view === "list" && hasDeadlines;
@@ -210,9 +207,10 @@ function Calendar() {
         />
       ) : (
         <div className={hasDeadlines && !isPhone ? "cal-layout" : undefined}>
-          <section ref={calendarPanel} className="panel cal-panel" aria-label="Month">
+          <section className="panel cal-panel" aria-label="Month">
+            {/* The label on the grid is hidden from screen readers (FullCalendar's week labels are), so say it here */}
+            {hell && <p className="sr-only">{`${hellLabel}: ${weekLabel(hell.start)}`}</p>}
             <FullCalendar
-              ref={calendarRef}
               plugins={[themePlugin, dayGridPlugin, interactionPlugin]}
               firstDay={WEEK_START}
               initialView="dayGridMonth"
@@ -228,6 +226,14 @@ function Calendar() {
               borderless
               eventClick={(info) => setSelectedDeadline(info.event.extendedProps.deadline)}
               eventOrder="timeOrder,title"
+              // Only the heaviest week's row shows its label, in the spot FullCalendar keeps for week numbers.
+              // Phones only get the tint: their cells are too narrow for it.
+              weekNumbers={showHellLabel}
+              inlineWeekNumberClass={(info) => (isHellStart(info.date) ? "cal-busy" : "cal-busy-none")}
+              inlineWeekNumberContent={(info) =>
+                isHellStart(info.date) ? <span className="cal-busy-text">{hellLabel}</span> : null
+              }
+              dayCellTopClass={(arg) => (showHellLabel && inHellWeek(toISO(arg.date)) ? "cal-busy-top" : "")}
               eventClass="cal-event"
               dayCellClass={(arg) => {
                 const date = toISO(arg.date);
@@ -264,7 +270,6 @@ function Calendar() {
               onOpen={setSelectedDeadline}
               onToggleDone={toggleDone}
               onHoverDate={setHoveredDate}
-              onShowWeek={showWeek}
             />
           )}
         </div>
