@@ -179,7 +179,7 @@
     margin-bottom: var(--space-5);
   }
 
-  /* Right side of a page head, e.g. the calendar's course chips and Add button */
+  /* Right side of a page head, e.g. the calendar's Add button */
   .page-actions {
     display: flex;
     flex-wrap: wrap;
@@ -480,6 +480,51 @@
   .chip[aria-pressed="true"] {
     border-color: var(--ink);
     background: var(--ink);
+    color: var(--surface);
+  }
+
+  /* A number at the end of a chip, e.g. how many are left in a course */
+  .chip-count {
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Calendar: the course chips get a row of their own under the title */
+  .cal-chips {
+    margin: calc(var(--space-3) - var(--space-5)) 0 var(--space-4);
+  }
+
+  /* A study buddy's first letter in a circle (components/Avatar.tsx) */
+  .avatar {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--subtle);
+    color: var(--ink-2);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .avatar-lg {
+    width: 32px;
+    height: 32px;
+    margin-right: var(--space-2);
+    font-size: var(--text-md);
+  }
+
+  /* Study buddy: the button for a course you have a buddy in. On the open chat (dark button) the circle goes light. */
+  .buddy-btn {
+    padding-left: 4px;
+  }
+
+  .buddy-btn.btn-primary .avatar {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--surface) 18%, transparent);
     color: var(--surface);
   }
 

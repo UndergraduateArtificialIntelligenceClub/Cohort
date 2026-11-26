@@ -120,15 +120,29 @@ function Calendar() {
     },
   }));
 
-  // Which color is which course (the list names the course on every row, so it doesn't need this)
+  // How many are still to do in each course (not done, due today or later), keyed like courseColors
+  const leftByCourse: Record<string, number> = {};
+  for (const d of deadlines ?? []) {
+    if (!d.done && d.date >= today) leftByCourse[courseLabel(d)] = (leftByCourse[courseLabel(d)] ?? 0) + 1;
+  }
+
+  // Which color is which course, on its own row under the title so it never crowds the Add button.
+  // The list names the course on every row, so it doesn't need this.
   const legend = !showList && Object.keys(courseColors).length > 0 && (
-    <ul className="chips" aria-label="Courses">
-      {Object.entries(courseColors).map(([course, color]) => (
-        <li key={course} className="chip" style={courseVar(color)}>
-          <i className="dot" />
-          {course}
-        </li>
-      ))}
+    <ul className="chips cal-chips" aria-label="Courses">
+      {Object.entries(courseColors).map(([course, color]) => {
+        const left = leftByCourse[course] ?? 0;
+        return (
+          <li key={course} className="chip" style={courseVar(color)} title={`${left} still to do`}>
+            <i className="dot" />
+            {course}
+            <span className="chip-count">
+              {left}
+              <span className="sr-only"> still to do</span>
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 
@@ -137,7 +151,6 @@ function Calendar() {
       <div className="page-head">
         <h1 className="page-title">Calendar</h1>
         <div className="page-actions">
-          {!isPhone && legend}
           {isPhone && hasDeadlines && (
             <div className="seg" role="group" aria-label="Calendar view">
               <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
@@ -155,20 +168,20 @@ function Calendar() {
               </button>
             </div>
           )}
-          {/* Phones: just the icon, so it fits next to List / Month */}
+          {/* The page's main action, unless the calendar is empty: then it's Upload a syllabus, below.
+              Phones: just the icon, so it fits next to List / Month. */}
           <button
             type="button"
-            className={isPhone ? "btn btn-icon" : "btn"}
-            aria-label={isPhone ? "Add a date" : undefined}
+            className={`btn${hasDeadlines ? " btn-primary" : ""}${isPhone ? " btn-icon" : ""}`}
+            aria-label={isPhone ? "Add an event" : undefined}
             onClick={() => setSelectedDeadline(draft(isPhone && view === "month" ? pickedDay : today))}
           >
             <IconPlus />
-            {!isPhone && "Add date"}
+            {!isPhone && "Add event"}
           </button>
         </div>
-        {/* Phones: on a row of its own under the title */}
-        {isPhone && legend}
       </div>
+      {legend}
       {error && <p className="notice notice-error mb-4">{error}</p>}
       {!deadlines && !error && <p className="muted mb-4">Loading deadlines...</p>}
       {deadlines?.some((d) => !d.done && d.date >= today) && (
@@ -182,7 +195,7 @@ function Calendar() {
         <div className="empty mb-4">
           <h2 className="modal-title">No deadlines yet</h2>
           <p className="muted">
-            Upload a syllabus and its deadlines show up here after you check them. You can also add dates yourself,
+            Upload a syllabus and its deadlines show up here after you check them. You can also add events yourself,
             for school or anything else{isPhone ? "." : ": click any day."}
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -191,7 +204,7 @@ function Calendar() {
             </Link>
             <button type="button" className="btn" onClick={() => setSelectedDeadline(draft(today))}>
               <IconPlus />
-              Add a date
+              Add an event
             </button>
           </div>
         </div>
