@@ -35,7 +35,25 @@ class Deadline(BaseModel):
         return f"{int(match.group(1)):02d}:{match.group(2)}"
 
 
-# What POST /parse and POST /parse-pdf return
+# A graded item the syllabus gives no date for: a final exam the Registrar schedules later, participation,
+# anything "TBA". The review popup warns about these so the student can add a date; ones they skip aren't saved.
+class UndatedItem(BaseModel):
+    course: str
+    title: str
+    category: Category
+    source_text: str
+    weight: float | None = None
+
+
+# What Gemini is asked to return (its JSON schema is sent with the prompt), and what POST /import-canvas returns
 class ParseResponse(BaseModel):
     deadlines: list[Deadline]
+    undated: list[UndatedItem] = []
     instructor: str | None = None  # e.g. "Dr. Smith". None when the syllabus doesn't say
+
+
+# What POST /parse and POST /parse-pdf return: the above plus the text that was read, so the review popup
+# can warn when a course name the student typed doesn't appear in the syllabus. Kept off ParseResponse,
+# or Gemini would be asked to copy the whole syllabus back.
+class SyllabusParse(ParseResponse):
+    text: str

@@ -15,7 +15,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader 
 
-from models import ParseResponse, Deadline
+from models import Deadline, ParseResponse, SyllabusParse
 
 
 MAX_TEXT_LENGTH = 100_000
@@ -213,7 +213,7 @@ def gemini_error(e: Exception) -> HTTPException:
     return HTTPException(status_code=502, detail="Something went wrong talking to Gemini.")
 
 
-def extract_deadlines(text: str) -> ParseResponse:
+def extract_deadlines(text: str) -> SyllabusParse:
     """The shared brain: syllabus text in, deadlines out."""
     today = date.today()
     prompt = (
@@ -237,7 +237,10 @@ def extract_deadlines(text: str) -> ParseResponse:
         "instructor lists every instructor named in the syllabus (one syllabus often covers several sections "
         "with different instructors), as written, separated by commas, or null if none is given. "
         # Rules about what to include and skip
-        "Only include items with a specific date. Skip anything TBA or with no date. Never guess a date. "
+        "Only put items with a specific date in deadlines. Never guess a date. "
+        "Graded items with no date (TBA, a final exam scheduled later, participation, ongoing work) go in undated "
+        "instead, with the same course, title, category, source_text and weight. A group with no dates "
+        "(e.g., 'Weekly reflections, 10%') is one undated item with the group's total weight. "
         "If several dates are listed for one kind of item, make one deadline per date "
         "(e.g., 'Labs: Sept 10, 17, 24, Oct 1 (20% total)' -> four lab deadlines, 5% each). "
         "Ignore dates that are not deadlines: publication dates, document dates, add/drop deadlines, holidays. "
@@ -278,7 +281,8 @@ def extract_deadlines(text: str) -> ParseResponse:
             detail=f"Gemini returned deadlines in an unexpected format ({where}: {first['msg']}). Try again.",
         )
 
-    return result
+    # Only the start is sent back: the course code is near the top, and a huge PDF shouldn't mean a huge reply
+    return SyllabusParse(**result.model_dump(), text=text[:MAX_TEXT_LENGTH])
 
 
 @app.get("/")
@@ -286,7 +290,7 @@ def home():
     return {"message": "Backend is alive"}
 
 
-@app.post("/parse", response_model=ParseResponse)
+@app.post("/parse", response_model=SyllabusParse)
 def parse(req: ParseRequest, user: dict = Depends(require_user)):
     if req.text.strip() == "":
         raise HTTPException(status_code=400, detail="No syllabus text provided.")
@@ -300,7 +304,7 @@ def parse(req: ParseRequest, user: dict = Depends(require_user)):
     return extract_deadlines(req.text)
 
 
-@app.post("/parse-pdf", response_model=ParseResponse)
+@app.post("/parse-pdf", response_model=SyllabusParse)
 def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
     file_size = file.size
 

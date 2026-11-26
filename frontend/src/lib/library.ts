@@ -91,6 +91,18 @@ export async function searchLibrary(query: string): Promise<SharedSyllabus[]> {
     .filter((s) => s.deadlines.length > 0);
 }
 
+// Every course in the library this term, e.g. ["CMPUT 174", "STAT 151"], for the review popup's course name
+// suggestions. Only the names: never who shared them.
+export async function libraryCourses(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("shared_syllabi")
+    .select("course")
+    .gte("last_deadline", todayISO())
+    .limit(1000);
+  if (error) throw new Error(`Couldn't load the course list: ${error.message}`);
+  return [...new Set(data.map((row) => row.course))].sort();
+}
+
 // Share deadlines the user just confirmed, one library entry per course.
 // Sharing the same course again replaces the user's earlier copy.
 export async function shareDeadlines(deadlines: Deadline[], instructor: string | null): Promise<void> {
