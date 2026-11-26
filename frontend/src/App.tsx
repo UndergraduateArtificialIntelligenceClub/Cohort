@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, NavLink, Route, Routes } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
+import { savePendingConsent } from "./lib/legal";
 import { supabase, supabaseConfigured } from "./lib/supabase";
 import { logOut } from "./lib/logout";
 import { useUnreadCount } from "./lib/useUnreadCount";
 import AccountMenu from "./components/AccountMenu";
+import Footer from "./components/Footer";
 import StudyBuddyBadge from "./components/StudyBuddyBadge";
 import { IconBell, IconCalendar, IconLogout, IconUpload, IconUsers, Logo } from "./components/Icons";
 import { InstallButton } from "./components/InstallPrompt";
@@ -13,7 +15,9 @@ import NotificationListener from "./components/NotificationListener";
 import NotificationSettings from "./components/NotificationSettings";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
+import Privacy from "./pages/Privacy";
 import StudyBuddy from "./pages/StudyBuddy";
+import Terms from "./pages/Terms";
 import Upload from "./pages/Upload";
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
@@ -45,6 +49,11 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // Back from "Continue with Google" with the Terms box ticked: save that agreement on the account (issue #61)
+  useEffect(() => {
+    if (session) savePendingConsent(session.user);
+  }, [session]);
+
   // No Supabase keys in frontend/.env: in development, skip login so teammates can still work on other pages.
   // On the live site, show an error instead of letting anyone in.
   if (!supabaseConfigured && !import.meta.env.DEV) {
@@ -52,8 +61,27 @@ function App() {
   }
   if (checking) return <p className="muted p-8 text-center">Loading…</p>;
 
-  // Logged out: show only the login page, no nav. Logged in: show the app.
-  if (supabaseConfigured && !session) return <Login />;
+  // Logged out: only the login page and the Terms and Privacy pages (readable before signing up), no nav.
+  // Any other address shows the login page, and shows that page once they log in.
+  if (supabaseConfigured && !session) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/terms" element={<PublicPage><Terms /></PublicPage>} />
+          <Route path="/privacy" element={<PublicPage><Privacy /></PublicPage>} />
+          <Route
+            path="*"
+            element={
+              <>
+                <Login />
+                <Footer />
+              </>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
 
   return (
     <BrowserRouter>
@@ -120,8 +148,34 @@ function App() {
         <Route path="/" element={<Calendar />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/study-buddy" element={<StudyBuddy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
       </Routes>
+      <Footer />
     </BrowserRouter>
+  );
+}
+
+// Terms and Privacy when logged out: a slim bar back to sign in instead of the app's nav
+function PublicPage({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <header className="nav-wrap">
+        <nav className="nav">
+          <Link to="/" className="brand">
+            <Logo />
+            {APP_NAME}
+          </Link>
+          <div className="nav-right">
+            <Link to="/" className="btn btn-sm">
+              Sign in
+            </Link>
+          </div>
+        </nav>
+      </header>
+      {children}
+      <Footer />
+    </>
   );
 }
 
