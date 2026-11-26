@@ -121,7 +121,7 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
     run(onDelete);
   }
 
-  const heading = isNew ? "Add a date" : personal ? "Personal date" : "Deadline details";
+  const heading = isNew ? "Add an event" : personal ? "Personal date" : "Deadline details";
   // An exam's time is when it starts; anything else school is when it's due
   const timeFieldLabel = personal ? "Time" : edited.category === "midterm" || edited.category === "final" ? "Start time" : "Due time";
 

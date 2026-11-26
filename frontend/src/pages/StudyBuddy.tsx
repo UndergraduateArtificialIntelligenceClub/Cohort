@@ -4,6 +4,7 @@
 // supabase/migrations/20261119120000_study_buddy.sql. Calls to Supabase are in lib/studyBuddy.ts.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
+import Avatar from "../components/Avatar";
 import { normalizeCourse } from "../lib/courses";
 import { loadDeadlines } from "../lib/deadlines";
 import { todayISO } from "../lib/library";
@@ -249,6 +250,7 @@ function StudyBuddy() {
                     )}
                   </div>
                   {match && me ? (
+                    // Your buddy, shown as a person (letter + first name) instead of a "Chat with ..." sentence
                     <button
                       type="button"
                       onClick={() => {
@@ -256,9 +258,11 @@ function StudyBuddy() {
                         setNotice("");
                       }}
                       aria-pressed={openMatch?.id === match.id}
-                      className={`btn btn-sm ${openMatch?.id === match.id ? "btn-primary" : ""}`}
+                      aria-label={`Chat with ${partnerName(match, me)}`}
+                      className={`btn btn-sm buddy-btn ${openMatch?.id === match.id ? "btn-primary" : ""}`}
                     >
-                      Chat with {partnerName(match, me)}
+                      <Avatar name={partnerName(match, me)} />
+                      {partnerName(match, me)}
                     </button>
                   ) : waiting ? (
                     <button
@@ -453,6 +457,7 @@ function Chat({ match, me, onLeave, onBack }: ChatProps) {
           <button type="button" className="icon-btn" aria-label="Back to your courses" onClick={onBack}>
             <IconChevronLeft size={22} />
           </button>
+          <Avatar name={name} large />
           <div className="row-text">
             <p className="row-title">{name}</p>
             <p className="row-meta">{match.course}</p>
@@ -463,6 +468,7 @@ function Chat({ match, me, onLeave, onBack }: ChatProps) {
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-1 border-b border-border px-4 py-3">
+          <Avatar name={name} large />
           <div className="row-text">
             <p className="row-title">{name}</p>
             <p className="row-meta">{match.course}</p>
