@@ -24,8 +24,22 @@ export type Deadline = {
   weight?: number | null; // percent of final grade, e.g. 15. The backend sends null when unknown
 };
 
-// What POST /parse and POST /parse-pdf return
+// A graded item the syllabus gives no date for (a final exam scheduled later, participation, "TBA").
+// The review popup warns about these so the student can add a date; skipped ones aren't saved.
+export type UndatedItem = {
+  course: string;
+  title: string;
+  category: Category;
+  source_text: string;
+  weight?: number | null;
+};
+
+// What POST /parse, POST /parse-pdf and POST /import-canvas return (ParseResponse and SyllabusParse in backend/models.py)
 export type ParseResponse = {
   deadlines: Deadline[];
+  // Optional so an older backend that doesn't send it still works
+  undated?: UndatedItem[];
   instructor: string | null; // e.g. "Dr. Smith". null when the syllabus doesn't say
+  // The syllabus text that was read, for the review popup's course name check. Not sent by the Canvas import.
+  text?: string;
 };

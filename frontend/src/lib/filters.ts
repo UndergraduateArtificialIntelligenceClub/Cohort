@@ -1,5 +1,5 @@
 import type { Deadline } from "../types";
-import { courseLabel, PERSONAL_LABEL } from "./courses";
+import { courseLabel, normalizeCourse, PERSONAL_LABEL } from "./courses";
 
 // Calendar filters (#79): hide some courses, and hide done items, to focus on what's left. No UI here:
 // components/CalendarFilters.tsx draws the course chips, and Hide done is a switch on the calendar's header.
@@ -18,7 +18,12 @@ export function loadFilters(): Filters {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "null");
     return {
-      hidden: Array.isArray(saved?.hidden) ? saved.hidden.filter((c: unknown) => typeof c === "string") : [],
+      // Saved before "CMPUT174" became "CMPUT 174"? Normalize, so a hidden course stays hidden
+      hidden: Array.isArray(saved?.hidden)
+        ? saved.hidden
+            .filter((c: unknown) => typeof c === "string")
+            .map((c: string) => (c === PERSONAL_LABEL ? c : normalizeCourse(c)))
+        : [],
       hideDone: saved?.hideDone === true,
     };
   } catch {

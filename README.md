@@ -93,16 +93,30 @@ Saved deadlines can also be dates people add themselves on the calendar. Those h
 
 Each person's course colors are saved in `course_colors`, so adding or removing a course never changes the others' colors, and clicking a course chip's color dot above the calendar picks a new one (clicking the course name shows or hides that course). A saved color is a position in the 12-color palette in [frontend/src/lib/courseColors.ts](frontend/src/lib/courseColors.ts), not a hex value. Run [supabase/migrations/20261126120000_course_colors.sql](supabase/migrations/20261126120000_course_colors.sql) in the SQL Editor to turn this on. Until then the calendar uses the old alphabetical colors, and picking a color shows an error.
 
-`POST /parse` and `POST /parse-pdf` return a `ParseResponse`:
+`POST /parse` and `POST /parse-pdf` return a `SyllabusParse`:
 
 ```
 {
   "deadlines": [ ...Deadline objects like the one above... ],
-  "instructor": "Dr. Smith"
+  "undated": [
+    {
+      "course": "CMPUT 174",
+      "title": "Final exam",
+      "category": "final",
+      "source_text": "Final exam (40%): date and time set by the Office of the Registrar.",
+      "weight": 40
+    }
+  ],
+  "instructor": "Dr. Smith",
+  "text": "CMPUT 174: Introduction to ..."
 }
 ```
 
-`instructor` is `null` when the syllabus doesn't name one.
+`undated` lists graded items the syllabus gives no date for (a final scheduled later, participation, anything TBA). The review popup warns about each one so the student can add a date. Ones they skip aren't saved, and dates they add aren't shared to the course library. `instructor` is `null` when the syllabus doesn't name one. `text` is the syllabus text that was read (the first 100,000 characters), so the review popup can warn when a course name the student typed doesn't appear in it.
+
+Gemini only gets `ParseResponse`'s schema (`deadlines`, `undated`, `instructor`), so it's never asked to copy the text back. `POST /import-canvas` returns a `ParseResponse` with `undated` always empty.
+
+Course names are stored normalized: trimmed, upper case, single spaces, and a space where the subject's letters first meet the number (`"cmput174"` → `"CMPUT 174"`, while `"INT D 137B"` stays as it is). The rule is `normalizeCourse()` in [frontend/src/lib/courses.ts](frontend/src/lib/courses.ts) and `public.normalize_course()` in [supabase/migrations/20261127120000_course_code_spacing.sql](supabase/migrations/20261127120000_course_code_spacing.sql), which every table's CHECK uses. To set it up, deploy the frontend first, then run that migration (an older page saving `"cmput174"` would be refused). [supabase/scripts/test_course_code_spacing.sql](supabase/scripts/test_course_code_spacing.sql) checks it.
 
 ## Notifications
 Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
