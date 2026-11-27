@@ -70,6 +70,7 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
 | `course` | string | `"CMPUT 174"` |
 | `title` | string | `"Assignment 2"` |
 | `date` | string, `YYYY-MM-DD` | `"2026-10-15"` |
+| `time` | string `HH:MM` (24-hour, Edmonton time) or null (optional): when it's due, or when an exam starts. null when the syllabus doesn't say | `"23:59"` |
 | `category` | `assignment`, `lab`, `quiz`, `midterm`, `final`, or `other` | `"assignment"` |
 | `source_text` | string, the exact sentence from the syllabus | `"Assignment 2 is due October 15."` |
 | `weight` | number or null (optional), percent of final grade | `15` |
@@ -79,25 +80,53 @@ Every deadline looks like this, in both the frontend ([frontend/src/types.ts](fr
   "course": "CMPUT 174",
   "title": "Assignment 2",
   "date": "2026-10-15",
+  "time": "23:59",
   "category": "assignment",
-  "source_text": "Assignment 2 is due October 15 and is worth 15% of your final grade.",
+  "source_text": "Assignment 2 is due October 15 at 11:59 PM and is worth 15% of your final grade.",
   "weight": 15
 }
 ```
 
-`POST /parse` and `POST /parse-pdf` return a `ParseResponse`:
+Saved deadlines can also be dates people add themselves on the calendar. Those have `source_text: null`, and personal ones (a dentist appointment, a shift) also have `course: null`, `category: "personal"` and `weight: null`. The parser never returns these, so `backend/models.py` doesn't have them. Anything keyed on course (study buddy, the course library) leaves personal items out. See [supabase/migrations/20261122000000_own_dates.sql](supabase/migrations/20261122000000_own_dates.sql).
+
+`time` is a time of day next to `date`, not a timestamp: everything that works on days (the sidebar, reminders, the unique key) only looks at `date`. A missing time is shown as no time, never as "11:59 PM". See [supabase/migrations/20261124120000_due_times.sql](supabase/migrations/20261124120000_due_times.sql).
+
+Each person's course colors are saved in `course_colors`, so adding or removing a course never changes the others' colors, and clicking a course chip's color dot above the calendar picks a new one (clicking the course name shows or hides that course). A saved color is a position in the 12-color palette in [frontend/src/lib/courseColors.ts](frontend/src/lib/courseColors.ts), not a hex value. Run [supabase/migrations/20261126120000_course_colors.sql](supabase/migrations/20261126120000_course_colors.sql) in the SQL Editor to turn this on. Until then the calendar uses the old alphabetical colors, and picking a color shows an error.
+
+`POST /parse` and `POST /parse-pdf` return a `SyllabusParse`:
 
 ```
 {
   "deadlines": [ ...Deadline objects like the one above... ],
-  "instructor": "Dr. Smith"
+  "undated": [
+    {
+      "course": "CMPUT 174",
+      "title": "Final exam",
+      "category": "final",
+      "source_text": "Final exam (40%): date and time set by the Office of the Registrar.",
+      "weight": 40
+    }
+  ],
+  "instructor": "Dr. Smith",
+  "text": "CMPUT 174: Introduction to ..."
 }
 ```
 
-`instructor` is `null` when the syllabus doesn't name one.
+`undated` lists graded items the syllabus gives no date for (a final scheduled later, participation, anything TBA). The review popup warns about each one so the student can add a date. Ones they skip aren't saved, and dates they add aren't shared to the course library. `instructor` is `null` when the syllabus doesn't name one. `text` is the syllabus text that was read (the first 100,000 characters), so the review popup can warn when a course name the student typed doesn't appear in it.
+
+Gemini only gets `ParseResponse`'s schema (`deadlines`, `undated`, `instructor`), so it's never asked to copy the text back. `POST /import-canvas` returns a `ParseResponse` with `undated` always empty.
+
+Course names are stored normalized: trimmed, upper case, single spaces, and a space where the subject's letters first meet the number (`"cmput174"` → `"CMPUT 174"`, while `"INT D 137B"` stays as it is). The rule is `normalizeCourse()` in [frontend/src/lib/courses.ts](frontend/src/lib/courses.ts) and `public.normalize_course()` in [supabase/migrations/20261127120000_course_code_spacing.sql](supabase/migrations/20261127120000_course_code_spacing.sql), which every table's CHECK uses. To set it up, deploy the frontend first, then run that migration (an older page saving `"cmput174"` would be refused). [supabase/scripts/test_course_code_spacing.sql](supabase/scripts/test_course_code_spacing.sql) checks it.
+
+## Terms and Privacy
+The Terms of Service and Privacy Policy are [frontend/src/pages/Terms.tsx](frontend/src/pages/Terms.tsx) and [frontend/src/pages/Privacy.tsx](frontend/src/pages/Privacy.tsx). They open logged out too, so people can read them before signing up. After login, anyone who hasn't agreed to the current version gets one screen asking them to, before the app opens. That covers new accounts (Google or email), older accounts, and everyone again when the wording changes. Agreements are saved in `terms_acceptances` by the `accept_terms()` function, with the database's time, and users can't change them.
+
+To set it up, run [supabase/migrations/20261127130000_terms_acceptances.sql](supabase/migrations/20261127130000_terms_acceptances.sql) **before** deploying the frontend. Without it, every logged in user is stuck on the agree screen. [supabase/scripts/test_terms_acceptances.sql](supabase/scripts/test_terms_acceptances.sql) checks it.
+
+When the wording changes, change `TERMS_VERSION` in [frontend/src/lib/legal.ts](frontend/src/lib/legal.ts) (and "Last updated" in `LegalPage.tsx`). Everyone is asked to agree again. While the version starts with `draft`, the pages show a "Draft, not final" banner.
 
 ## Notifications
-Cohort sends push notifications: a deadline reminder the evening before each deadline (plus 3 days' notice for exams and anything worth 15% or more), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
+Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
 
 How it fits together:
 - [frontend/public/sw.js](frontend/public/sw.js) shows the notifications. [frontend/src/lib/notifications.ts](frontend/src/lib/notifications.ts) turns them on and off.
@@ -128,6 +157,8 @@ Working on something else? You can skip all of this. Without `VITE_VAPID_PUBLIC_
    select vault.create_secret('<random string>', 'cohort_notify_secret');
    ```
 5. Add `VITE_VAPID_PUBLIC_KEY` to Vercel's environment variables and redeploy the frontend.
+
+Already set up before due times were added? Run [20261124120000_due_times.sql](supabase/migrations/20261124120000_due_times.sql), then redeploy the function (`supabase functions deploy send-notifications --no-verify-jwt`) so reminders say the time. [supabase/scripts/test_due_times.sql](supabase/scripts/test_due_times.sql) checks the migration.
 
 Check it's working: Supabase dashboard → Edge Functions → send-notifications → Logs. Each run logs how many notifications it sent. If you make new VAPID keys later, everyone has to turn notifications on again.
 

@@ -1,7 +1,11 @@
 import type { Category, Deadline } from "../types";
+import { isPersonal } from "./courses";
 
-// The rules behind the calendar sidebar (components/CalendarSidebar.tsx): what's next, what's this week,
-// and which week coming up is the heaviest ("hell week"). No UI and no Supabase here, just plain functions.
+// The rules behind the calendar sidebar (components/CalendarSidebar.tsx) and the phone list
+// (components/AgendaList.tsx): what's due in the next 7 days, what's next, and which week coming up is the
+// heaviest ("hell week"). No UI and no Supabase here, just plain functions.
+// Personal items (no course) show up in the 7-day lists, but never in Next up, Overdue / "Did you finish?"
+// or the forecast: those are about schoolwork.
 
 // ---------- Dates ----------
 // Deadlines are "YYYY-MM-DD" in the student's own time zone. Day maths runs on whole UTC days,
@@ -64,6 +68,38 @@ export function longDate(iso: string): string {
   return fmt(iso, { weekday: "short", month: "short", day: "numeric" });
 }
 
+// "Thursday, Nov 21", the sidebar's heading
+export function fullDate(iso: string): string {
+  return fmt(iso, { weekday: "long", month: "short", day: "numeric" });
+}
+
+// ---------- Times ----------
+// A deadline's time is "HH:MM" in Edmonton, shown as written: never converted, never used in day maths.
+// null means the syllabus didn't say, so nothing is shown (it's never treated as "11:59 PM").
+
+// "11:59 PM" for "23:59". Same as clock() in supabase/functions/send-notifications/compose.ts.
+export function timeLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+// "11:59p", "9a": short enough for a calendar pill
+export function shortTimeLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "a" : "p"}`;
+}
+
+// "Due 11:59 PM", "Starts 9:00 AM" for an exam, or just "2:30 PM" for a personal item. "" with no time.
+export function whenLabel(d: Deadline): string {
+  if (!d.time) return "";
+  if (isPersonal(d)) return timeLabel(d.time);
+  return `${d.category === "midterm" || d.category === "final" ? "Starts" : "Due"} ${timeLabel(d.time)}`;
+}
+
+// Soonest first: by day, then by time, with untimed ones after the timed ones on the same day
+export const bySchedule = (a: Deadline, b: Deadline) =>
+  a.date.localeCompare(b.date) || (a.time ?? "99").localeCompare(b.time ?? "99");
+
 // "Nov 29 – Dec 5" for the week starting on the given day
 export function weekLabel(start: string): string {
   const end = addDays(start, 6);
@@ -73,7 +109,7 @@ export function weekLabel(start: string): string {
 
 // ---------- Weights ----------
 // Many syllabi don't give a weight. For the forecast, guess one from the category.
-// Guesses are always shown with "~" so they never look like real numbers.
+// Guesses are only used to compare weeks and sort, never shown, so they can't be mistaken for real numbers.
 const GUESSED_WEIGHT: Record<Category, number> = {
   final: 30,
   midterm: 20,
@@ -83,15 +119,9 @@ const GUESSED_WEIGHT: Record<Category, number> = {
   lab: 3,
 };
 
-export function weightOf(d: Deadline): { value: number; guessed: boolean } {
-  if (d.weight != null) return { value: d.weight, guessed: false };
-  return { value: GUESSED_WEIGHT[d.category], guessed: true };
-}
-
-// "15%" when the syllabus says so, "~8%" when guessed
-export function weightLabel(d: Deadline): string {
-  const { value, guessed } = weightOf(d);
-  return `${guessed ? "~" : ""}${value}%`;
+export function weightOf(d: Deadline): number {
+  if (d.category === "personal") return 0;
+  return d.weight ?? GUESSED_WEIGHT[d.category];
 }
 
 // ---------- Next up and this week ----------
@@ -103,31 +133,72 @@ export const WEEK_DAYS = 7;
 // Most students won't tick everything, so old ones must never pile up.
 export const ASK_DAYS = 3;
 
-const soonestFirst = (a: Deadline, b: Deadline) =>
-  a.date.localeCompare(b.date) || weightOf(b).value - weightOf(a).value;
+// A 9 AM quiz is next up before an assignment due at 11:59 PM the same day
+const soonestFirst = (a: Deadline, b: Deadline) => bySchedule(a, b) || weightOf(b) - weightOf(a);
 
 export type Plan = {
-  nextUp: Deadline | null; // soonest unfinished deadline in the next 5 days
-  later: Deadline | null; // when nothing is next up: the first unfinished one after that
-  thisWeek: Deadline[]; // unfinished, due in the next 7 days, not counting nextUp
+  nextUp: Deadline | null; // soonest unfinished school deadline in the next 5 days
+  later: Deadline | null; // when nothing is next up: the first unfinished school one after that
+  thisWeek: Deadline[]; // unfinished, due in the next 7 days, not counting nextUp. Personal items too
   doneThisWeek: Deadline[]; // finished ones due in the next 7 days
-  askFinished: Deadline[]; // unfinished, 1 to 3 days late, not dismissed yet
+  askFinished: Deadline[]; // unfinished school deadlines, 1 to 3 days late, not dismissed yet
 };
 
 export function makePlan(deadlines: Deadline[], today: string, dismissed: Set<string>): Plan {
   const sorted = [...deadlines].sort(soonestFirst);
   const open = sorted.filter((d) => !d.done && daysUntil(d.date, today) >= 0);
-  const nextUp = open.find((d) => daysUntil(d.date, today) < NEXT_UP_DAYS) ?? null;
+  const openSchool = open.filter((d) => !isPersonal(d));
+  const nextUp = openSchool.find((d) => daysUntil(d.date, today) < NEXT_UP_DAYS) ?? null;
   const inWeek = (d: Deadline) => daysUntil(d.date, today) < WEEK_DAYS;
   return {
     nextUp,
-    later: nextUp ? null : (open[0] ?? null),
+    later: nextUp ? null : (openSchool[0] ?? null),
     thisWeek: open.filter((d) => d !== nextUp && inWeek(d)),
     doneThisWeek: sorted.filter((d) => d.done && daysUntil(d.date, today) >= 0 && inWeek(d)),
-    askFinished: sorted.filter((d) => {
-      const late = -daysUntil(d.date, today);
-      return !d.done && late >= 1 && late <= ASK_DAYS && !(d.id && dismissed.has(d.id));
-    }),
+    askFinished: sorted.filter((d) => isRecentlyLate(d, today, dismissed)),
+  };
+}
+
+// An unfinished school deadline 1 to 3 days late that the student hasn't said "No" to on their phone
+function isRecentlyLate(d: Deadline, today: string, dismissed: Set<string>): boolean {
+  const late = -daysUntil(d.date, today);
+  return !d.done && !isPersonal(d) && late >= 1 && late <= ASK_DAYS && !(d.id && dismissed.has(d.id));
+}
+
+// ---------- 7-day agenda (desktop sidebar) ----------
+export type AgendaDay = {
+  date: string;
+  overdue: Deadline[]; // only on today: recently late ones, the same rule as "Did you finish?"
+  items: Deadline[]; // unfinished ones due that day, soonest first
+};
+
+export type Agenda = {
+  days: AgendaDay[]; // today and tomorrow always (they may be empty), later days only when something is due
+  leftToday: number; // unfinished today, overdue included
+  laterThisWeek: number; // unfinished in the 6 days after today
+  done: Deadline[]; // finished ones due today through 6 days from now
+};
+
+// Late ones stop showing after ASK_DAYS, so a term of unticked deadlines never piles up at the top.
+export function makeAgenda(deadlines: Deadline[], today: string, dismissed: Set<string>): Agenda {
+  const sorted = [...deadlines].sort(soonestFirst);
+  const inWindow = (d: Deadline) => daysUntil(d.date, today) >= 0 && daysUntil(d.date, today) < WEEK_DAYS;
+  const open = sorted.filter((d) => !d.done && inWindow(d));
+  const overdue = sorted.filter((d) => isRecentlyLate(d, today, dismissed));
+
+  const days: AgendaDay[] = [];
+  for (let i = 0; i < WEEK_DAYS; i++) {
+    const date = addDays(today, i);
+    const items = open.filter((d) => d.date === date);
+    if (i < 2 || items.length > 0) days.push({ date, overdue: i === 0 ? overdue : [], items });
+  }
+  const leftToday = days[0].overdue.length + days[0].items.length;
+
+  return {
+    days,
+    leftToday,
+    laterThisWeek: open.length - days[0].items.length,
+    done: sorted.filter((d) => d.done && inWindow(d)),
   };
 }
 
@@ -151,17 +222,15 @@ export type Forecast = {
   startEarly: Deadline | null; // the biggest unfinished thing due in hell week
 };
 
-export function makeForecast(deadlines: Deadline[], today: string): Forecast {
-  // Every week of the student's term that has anything due, past ones too
-  const byWeek = new Map<string, Week>();
-  for (const d of deadlines) {
-    const start = weekStart(d.date);
-    const week = byWeek.get(start) ?? { start, load: 0, items: [] };
-    week.load += weightOf(d).value;
-    week.items.push(d);
-    byWeek.set(start, week);
-  }
-  for (const week of byWeek.values()) week.items.sort((a, b) => weightOf(b).value - weightOf(a).value);
+// openOnly: weigh the weeks ahead by what's still to do (not done, today or later), so a week you've mostly
+// finished stops being the heaviest, and the calendar's label agrees with the sidebar. The "usual week" is
+// still worked out from the whole term, done or not, so it stays a fair yardstick to the very last week.
+export function makeForecast(deadlines: Deadline[], today: string, { openOnly = false } = {}): Forecast {
+  // Every week of the student's term that has anything due, past ones too. Only schoolwork counts.
+  const byWeek = groupByWeek(deadlines.filter((d) => !isPersonal(d)));
+  const counted = openOnly
+    ? groupByWeek(deadlines.filter((d) => !isPersonal(d) && !d.done && daysUntil(d.date, today) >= 0))
+    : byWeek;
 
   // "Usual week" = median of the weeks that have something due. Empty weeks (reading week,
   // the gap before finals) are left out, or the median drops to 0 and every week looks like hell.
@@ -172,7 +241,7 @@ export function makeForecast(deadlines: Deadline[], today: string): Forecast {
   const first = weekStart(today);
   const weeks = Array.from({ length: FORECAST_WEEKS }, (_, i) => {
     const start = addDays(first, i * 7);
-    return byWeek.get(start) ?? { start, load: 0, items: [] };
+    return counted.get(start) ?? { start, load: 0, items: [] };
   });
 
   // Earliest wins a tie: it's the one to worry about first
@@ -183,7 +252,21 @@ export function makeForecast(deadlines: Deadline[], today: string): Forecast {
   return { weeks, busiest, hell, startEarly };
 }
 
-// How many different courses a set of deadlines covers
+// Week start -> that week's deadlines (heaviest first) and their summed weight
+function groupByWeek(deadlines: Deadline[]): Map<string, Week> {
+  const byWeek = new Map<string, Week>();
+  for (const d of deadlines) {
+    const start = weekStart(d.date);
+    const week = byWeek.get(start) ?? { start, load: 0, items: [] };
+    week.load += weightOf(d);
+    week.items.push(d);
+    byWeek.set(start, week);
+  }
+  for (const week of byWeek.values()) week.items.sort((a, b) => weightOf(b) - weightOf(a));
+  return byWeek;
+}
+
+// How many different courses a set of deadlines covers (personal items aren't a course)
 export function courseCount(deadlines: Deadline[]): number {
-  return new Set(deadlines.map((d) => d.course)).size;
+  return new Set(deadlines.flatMap((d) => (d.course === null ? [] : [d.course]))).size;
 }

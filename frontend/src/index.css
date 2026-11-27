@@ -179,6 +179,15 @@
     margin-bottom: var(--space-5);
   }
 
+  /* Right side of a page head, e.g. the calendar's Add button */
+  .page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
   .page-title {
     font: 600 var(--text-xl) / 1.2 var(--font-heading);
     letter-spacing: -0.01em;
@@ -311,6 +320,13 @@
 
   .btn-block {
     width: 100%;
+  }
+
+  /* A square button with only an icon, the same height as .seg next to it */
+  .btn-icon {
+    width: 42px;
+    height: 42px;
+    padding: 0;
   }
 
   .icon-btn {
@@ -467,6 +483,224 @@
     color: var(--surface);
   }
 
+  /* Course chips under the Calendar title (components/CalendarFilters.tsx). Each chip is two buttons:
+     the color dot (opens ColorPopover) and the name (shows or hides the course). */
+  .cal-filters {
+    margin: calc(var(--space-3) - var(--space-5)) 0 var(--space-4);
+  }
+
+  .chip.cal-course {
+    position: relative;
+    gap: 0;
+    padding: 0;
+  }
+
+  .cal-course-dot,
+  .cal-course-name {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+
+  /* The dot's button is wider than the dot, so it's easy to hit */
+  .cal-course-dot {
+    justify-content: center;
+    width: 26px;
+    padding: 0 0 0 4px;
+  }
+
+  button.cal-course-dot {
+    cursor: pointer;
+  }
+
+  .cal-course-dot .dot {
+    transition: box-shadow var(--duration) var(--ease), transform var(--duration) var(--ease);
+  }
+
+  /* Hovering the dot rings it, so it reads as something you can click */
+  button.cal-course-dot:hover .dot,
+  button.cal-course-dot[aria-expanded="true"] .dot {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--c);
+  }
+
+  .cal-course-name {
+    padding: 0 10px 0 4px;
+    cursor: pointer;
+  }
+
+  .chip.cal-course:has(.cal-course-name:hover) {
+    border-color: var(--border-hover);
+  }
+
+  /* Hidden course: grey dot, faded name */
+  .chip.cal-course.is-hidden {
+    background: transparent;
+    color: var(--ink-3);
+  }
+
+  .chip.cal-course.is-hidden .dot {
+    background: var(--border-strong);
+  }
+
+  .chip.cal-course.is-hidden .cal-course-name {
+    opacity: 0.7;
+  }
+
+  .cal-filter-note {
+    margin-top: var(--space-2);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  .cal-filter-clear {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .cal-filter-clear:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* The palette under a course chip (components/ColorPopover.tsx): 6 to a row */
+  .color-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(6, 26px);
+    gap: 8px;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    animation: rise-in var(--duration) var(--ease);
+  }
+
+  .color-pop.is-right {
+    right: 0;
+    left: auto;
+  }
+
+  .swatch {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--c);
+    color: var(--surface);
+    cursor: pointer;
+    transition: box-shadow var(--duration) var(--ease);
+  }
+
+  .swatch:hover {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--border-strong);
+  }
+
+  .swatch[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c);
+  }
+
+  /* Hide done: a small switch in the calendar's header, next to Today */
+  .cal-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: var(--control);
+    margin-right: var(--space-2);
+    padding: 0 var(--space-1);
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .cal-switch:hover {
+    color: var(--ink);
+  }
+
+  .cal-switch-track {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--border-strong);
+    transition: background var(--duration) var(--ease);
+  }
+
+  .cal-switch-track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .cal-switch[aria-checked="true"] .cal-switch-track {
+    background: var(--accent);
+  }
+
+  .cal-switch[aria-checked="true"] .cal-switch-track::after {
+    transform: translateX(12px);
+  }
+
+  /* A study buddy's first letter in a circle (components/Avatar.tsx) */
+  .avatar {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--subtle);
+    color: var(--ink-2);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .avatar-lg {
+    width: 32px;
+    height: 32px;
+    margin-right: var(--space-2);
+    font-size: var(--text-md);
+  }
+
+  /* Study buddy: the button for a course you have a buddy in. On the open chat (dark button) the circle goes light. */
+  .buddy-btn {
+    padding-left: 4px;
+  }
+
+  .buddy-btn.btn-primary .avatar {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--surface) 18%, transparent);
+    color: var(--surface);
+  }
+
   /* Course color dot. Set --c on it or a parent. */
   .dot {
     display: inline-block;
@@ -503,6 +737,17 @@
     border-color: color-mix(in srgb, var(--danger) 25%, transparent);
     background: var(--danger-subtle);
     color: var(--danger);
+  }
+
+  /* Worth a look, but nothing is wrong yet (the review popup's warnings) */
+  .notice-warn {
+    border-color: color-mix(in srgb, var(--warn) 25%, transparent);
+    background: var(--warn-subtle);
+    color: var(--ink);
+  }
+
+  .notice-warn > svg {
+    color: var(--warn);
   }
 
   .error-text {
@@ -617,11 +862,61 @@
     margin-left: auto;
   }
 
+  /* The account button (components/AccountMenu.tsx): your email on desktop, just the icon on phones */
+  .account {
+    position: relative;
+    min-width: 0;
+  }
+
+  .nav-account {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 100%;
+    height: var(--control-sm);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+
+  .nav-account:hover,
+  .nav-account[aria-expanded="true"] {
+    background: var(--subtle);
+    color: var(--ink);
+  }
+
   .nav-email {
     overflow: hidden;
-    color: var(--ink-3);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Desktop: the account menu as a dropdown under the button (phones use a Sheet instead) */
+  .account-menu {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    z-index: 30;
+    width: 240px;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    animation: rise-in var(--duration) var(--ease);
+  }
+
+  .account-menu .sheet-item {
+    min-height: 40px;
+    font-size: var(--text-md);
+  }
+
+  .account-menu .sheet-item svg {
+    width: 16px;
+    height: 16px;
   }
 
   /* Red unread count on a nav tab */
@@ -642,7 +937,6 @@
     display: contents;
   }
 
-  .nav-account,
   .bottom-tabs {
     display: none;
   }
@@ -706,6 +1000,10 @@
   }
 
   /* Label with a line of explanation under it */
+  .sheet-item-danger {
+    color: var(--danger);
+  }
+
   .sheet-item-2 {
     flex-direction: column;
     align-items: flex-start;
@@ -947,6 +1245,7 @@
     background: var(--warn);
     color: var(--surface);
     font-size: var(--text-sm);
+    font-weight: 600;
   }
 
   /* ---------- Upload on phones ---------- */
@@ -1114,18 +1413,123 @@
     white-space: pre-wrap;
   }
 
-  .progress {
-    height: 4px;
-    overflow: hidden;
-    border-radius: 2px;
-    background: var(--subtle);
+  /* ---------- Review popup (components/ReviewPopup.tsx) ---------- */
+  /* One block per course, split by a line */
+  .review-course + .review-course {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
   }
 
-  .progress span {
-    display: block;
-    height: 100%;
-    background: var(--accent);
-    transition: width 200ms var(--ease);
+  .review-course-head {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+
+  .review-course-field {
+    flex: 1;
+  }
+
+  .review-course-name {
+    font-weight: 600;
+  }
+
+  .review-count {
+    flex: none;
+    height: var(--control);
+    line-height: var(--control);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .review-counts {
+    margin-top: var(--space-2);
+    color: var(--ink-2);
+    font-size: var(--text-md);
+  }
+
+  .review-total {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    color: var(--accent);
+    font-size: var(--text-md);
+  }
+
+  .review-warnings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .review-warn-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .review-warn-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .review-toggle {
+    margin-top: var(--space-2);
+    margin-left: calc(-1 * var(--space-2));
+  }
+
+  .review-list {
+    margin: var(--space-1) 0 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .review-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  }
+
+  .review-row + .review-row {
+    border-top: 1px solid var(--border);
+  }
+
+  .review-row-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .review-row-title {
+    font-weight: 500;
+  }
+
+  .review-row-meta {
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  /* Removed, but still there to undo */
+  .review-row.is-removed .review-row-main {
+    color: var(--ink-3);
+    text-decoration: line-through;
+  }
+
+  .review-row.is-removed .review-row-meta {
+    color: var(--ink-3);
   }
 
   /* ---------- Upload page ---------- */
@@ -1145,6 +1549,52 @@
 
   .shared-row {
     padding-block: var(--space-2);
+  }
+
+  /* Import from Canvas panel on the Upload page (#62) */
+  .canvas {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .canvas-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .canvas-sub {
+    margin-top: var(--space-1);
+    font-size: var(--text-sm);
+  }
+
+  .canvas-form {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .canvas-form .input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .canvas-help {
+    font-size: var(--text-sm);
+  }
+
+  .canvas-help summary {
+    width: fit-content;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  .canvas-help ol {
+    margin: var(--space-2) 0;
+    padding-left: var(--space-5);
+    list-style: decimal;
   }
 
   .add-grid {
@@ -1337,177 +1787,140 @@
   /* ---------- Calendar page: grid + sidebar (components/CalendarSidebar.tsx) ---------- */
   .cal-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--space-4);
     align-items: start;
   }
 
+  /* One 7-day agenda, grouped by day */
   .side {
     position: sticky;
     top: 64px;
     min-width: 0;
+    padding: var(--space-5) var(--space-5) var(--space-4);
   }
 
-  /* Sections are split by thin lines, not boxed cards */
-  .side-sec {
-    padding: var(--space-4);
+  .side-title {
+    font: 600 22px / 1.25 var(--font-heading);
+    letter-spacing: -0.01em;
   }
 
-  .side-sec + .side-sec {
-    border-top: 1px solid var(--border);
+  .side-sub {
+    margin-top: 2px;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
   }
 
-  .side-h-row {
+  .side-day {
+    margin-top: var(--space-3);
+  }
+
+  .side-head + .side-day {
+    margin-top: var(--space-4);
+  }
+
+  .side-day-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
+    margin-bottom: var(--space-1);
   }
 
-  .side-h {
-    margin-bottom: var(--space-2);
-    color: var(--ink-3);
-    font-size: 11px;
+  .side-day-label {
+    color: var(--ink);
+    font-size: var(--text-sm);
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
   }
 
-  .side-count {
+  /* Same green as today's date on the grid */
+  .side-day-label.is-today {
+    color: var(--accent);
+  }
+
+  .side-clear {
     color: var(--ink-3);
     font-size: var(--text-sm);
-    font-variant-numeric: tabular-nums;
   }
 
-  .side-note {
-    font-size: var(--text-sm);
-  }
-
-  /* Course code with its color dot */
-  .side-course {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--ink-2);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  /* Next up: the one thing with visual weight */
-  .side-hero {
-    padding: var(--space-3);
+  /* Today's items get a little more weight: one bordered card */
+  .side-card {
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: color-mix(in srgb, var(--c) 8%, var(--surface));
-    box-shadow: inset 3px 0 0 var(--c);
   }
 
-  .side-hero-title {
-    display: block;
-    margin-top: 2px;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--ink);
-    font: 600 var(--text-lg) / 1.3 var(--font-heading);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .side-hero-title:hover {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .side-hero-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px var(--space-2);
-    margin-top: var(--space-1);
-    color: var(--ink-2);
-    font-size: var(--text-sm);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .side-hero-meta strong {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
-  .side-hero-meta span + span::before,
-  .side-hero-meta strong + span::before {
-    content: "·";
-    margin-right: var(--space-2);
-    color: var(--ink-3);
-  }
-
-  .side-calm-title {
-    font-weight: 500;
-  }
-
-  .side-calm .muted {
-    margin-top: 2px;
-    font-size: var(--text-sm);
-  }
-
-  /* Deadline rows */
   .side-row {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    align-items: flex-start;
+    gap: var(--space-3);
     padding-block: 6px;
   }
 
-  .side-row + .side-row {
+  .side-card .side-row {
+    padding-block: var(--space-2);
+  }
+
+  .side-card .side-row + .side-row {
     border-top: 1px solid var(--border);
   }
 
-  .side-row-main {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    align-items: flex-start;
-    min-width: 0;
+  /* The checkbox: a real button, 20px, with a tick when done */
+  .tick {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
     padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    text-align: left;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--surface);
     cursor: pointer;
+    transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease);
+  }
+
+  .tick:hover {
+    border-color: var(--accent);
+  }
+
+  .side-row.is-done .tick {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .side-row-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .side-row-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
   }
 
   .side-row-title {
+    min-width: 0;
     max-width: 100%;
     overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: none;
     color: var(--ink);
     font-weight: 500;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
   }
 
-  .side-row-main:hover .side-row-title {
+  .side-row-title:hover {
     text-decoration: underline;
     text-underline-offset: 3px;
-  }
-
-  .side-row-sub {
-    color: var(--ink-3);
-    font-size: var(--text-sm);
-  }
-
-  .side-row-when {
-    display: flex;
-    flex: none;
-    flex-direction: column;
-    align-items: flex-end;
-    color: var(--ink-2);
-    font-size: var(--text-sm);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.3;
-  }
-
-  .side-row-when small {
-    color: var(--ink-3);
-    font-size: 11px;
   }
 
   .side-row.is-done .side-row-title {
@@ -1515,181 +1928,128 @@
     text-decoration: line-through;
   }
 
-  .side-more {
-    display: block;
-    margin-top: var(--space-1);
-    padding: 4px 0;
-    border: 0;
-    background: none;
-    color: var(--ink-2);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .side-more:hover {
-    color: var(--ink);
-  }
-
-  /* Did you finish? */
-  .side-ask {
-    background: var(--bg);
-  }
-
-  .side-ask-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding-block: 4px;
-  }
-
-  .link-button {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    font-weight: 500;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    cursor: pointer;
-  }
-
-  /* Crunch forecast: one bar per week */
-  .spark {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 4px;
-    height: 44px;
-  }
-
-  .spark-bar {
-    display: flex;
-    align-items: flex-end;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    border-radius: 3px;
-    background: none;
-    cursor: pointer;
-  }
-
-  .spark-bar span {
-    width: 100%;
-    border-radius: 3px;
-    background: var(--border-strong);
-    transition: background var(--duration) var(--ease);
-  }
-
-  .spark-bar:hover span {
-    background: var(--ink-3);
-  }
-
-  .spark-bar.is-focus span {
-    background: var(--ink-2);
-  }
-
-  .spark-bar.is-hell span {
-    background: var(--warn);
-  }
-
-  .spark-axis {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 4px;
-    color: var(--ink-3);
-    font-size: 11px;
-  }
-
-  .crunch {
-    margin-top: var(--space-3);
-    font-size: var(--text-sm);
-  }
-
-  .crunch.is-hell {
-    padding: var(--space-3);
+  .side-tag {
+    flex: none;
+    padding: 0 6px;
     border-radius: var(--radius);
-    background: var(--warn-subtle);
+    background: var(--danger-subtle);
+    color: var(--danger);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
   }
 
-  .crunch-title {
-    font-size: var(--text-md);
+  /* Course · time · weight, split by dots */
+  .side-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
   }
 
-  .hell-tag {
+  .side-meta > * + *::before {
+    content: "·";
+    margin: 0 5px;
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+
+  .side-course {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  /* 20% or more of the grade: the warm color always means "heavy" (also the busy week on the grid) */
+  .side-heavy {
     color: var(--warn);
     font-weight: 600;
   }
 
-  .crunch-sum {
+  .side-buddy {
+    display: inline-block;
     margin-top: 2px;
-    color: var(--ink-2);
+    color: var(--accent);
+    font-size: var(--text-sm);
+    font-weight: 500;
   }
 
-  .crunch-list {
-    margin-top: var(--space-2);
-  }
-
-  .crunch-item {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-    padding: 3px 0;
-    border: 0;
-    background: none;
-    color: var(--ink);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .crunch-item:hover .crunch-item-title {
+  .side-buddy:hover {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 
-  .crunch-item-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .side-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
   }
 
-  .crunch-item.is-done .crunch-item-title {
-    color: var(--ink-3);
-    text-decoration: line-through;
+  .side-link,
+  .side-done-toggle {
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
   }
 
-  .crunch-item-w {
+  .side-link {
+    color: var(--accent);
+  }
+
+  .side-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .side-done-toggle {
+    margin-left: auto;
     color: var(--ink-2);
     font-variant-numeric: tabular-nums;
   }
 
-  .crunch-tip {
-    margin-top: var(--space-2);
+  .side-done-toggle:hover {
     color: var(--ink);
   }
 
-  .crunch-foot {
-    margin-top: var(--space-2);
-    color: var(--ink-3);
-    font-size: 11px;
+  .side-chev {
+    display: inline-block;
+    margin-left: 2px;
+    transition: transform var(--duration) var(--ease);
   }
+
+  .side-done-toggle[aria-expanded="true"] .side-chev {
+    transform: rotate(90deg);
+  }
+
+  .side-done {
+    margin-top: var(--space-1);
+  }
+
 }
 
 /* =========================================================
    Narrow screens
    ========================================================= */
-@media (max-width: 960px) {
+/* Tablets and small laptops: the agenda goes under the month, full width */
+@media (max-width: 1024px) {
   @layer components {
     .cal-layout {
       grid-template-columns: minmax(0, 1fr);
     }
 
-    /* On phones "what's next" matters more than the month, so it comes first */
     .side {
       position: static;
-      order: -1;
     }
   }
 }
@@ -1720,9 +2080,11 @@
   }
 
   .nav-account {
-    display: inline-flex;
+    justify-content: center;
     width: 44px;
     height: 44px;
+    padding: 0;
+    color: var(--ink-2);
   }
 
   .bottom-tabs {
@@ -1795,8 +2157,18 @@
   }
 
   .shared,
-  .paste {
+  .paste,
+  .canvas {
     padding: var(--space-3);
+  }
+
+  .canvas-form {
+    flex-direction: column;
+  }
+
+  /* flex: 1 would squash the field's height once the form is a column */
+  .canvas-form .input {
+    flex: none;
   }
 
   /* ----- Every popup becomes a bottom sheet, buttons in thumb reach ----- */
@@ -1988,6 +2360,12 @@ html:root {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* "11:59p" before the title, quieter so the title still reads first */
+.ev-time {
+  margin-right: 4px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Today */
 .cal-today {
@@ -2005,8 +2383,55 @@ html:root {
 .cal-hell {
   background: color-mix(in srgb, var(--warn-subtle) 80%, transparent);
 }
+/* Hell week's label: a strip across the top of its row (FullCalendar's week number spot, see Calendar.tsx).
+   Only that row has one; the others' week numbers are hidden. */
+.cal-panel .cal-busy {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 24px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--warn);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  pointer-events: none;
+}
+.cal-panel .cal-busy::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warn);
+}
+.cal-panel .cal-busy-none {
+  display: none;
+}
+/* Room for the label above that row's day numbers */
+.cal-busy-top {
+  margin-top: 24px;
+}
+.cal-busy-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cal-hover {
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* Desktop: clicking an empty part of a day adds something on that day */
+.cal-addable {
+  cursor: pointer;
+}
+.cal-addable:hover {
+  box-shadow: inset 0 0 0 1px var(--border-hover);
 }
 /* Phones: the day whose deadlines are listed under the grid */
 .cal-picked {
@@ -2079,13 +2504,6 @@ body > [role="dialog"] {
 
 /* ---------- Terms, Privacy and the footer: issue #61 ---------- */
 @layer components {
-  /* The app's root is a full-height column, so the footer (margin-top: auto) sits at the bottom of short pages */
-  #root {
-    display: flex;
-    flex-direction: column;
-    min-height: 100svh;
-  }
-
   .legal-body {
     max-width: 68ch;
     color: var(--ink-2);
@@ -2106,7 +2524,7 @@ body > [role="dialog"] {
     margin-top: var(--space-2);
   }
 
-  /* margin-top: auto pins it to the bottom of short pages (its parent is a full-height column) */
+  /* margin-top: auto pins it to the bottom of short pages (its parent is a full-height column, see OutsideApp in App.tsx) */
   .site-footer {
     display: flex;
     justify-content: center;
@@ -2125,16 +2543,5 @@ body > [role="dialog"] {
   .site-footer a:hover {
     color: var(--ink);
     text-decoration: underline;
-  }
-}
-
-@media (max-width: 720px) {
-  /* Logged in on phones: the footer takes over the room the page kept free for the bottom tabs */
-  .page:has(+ .site-footer) {
-    padding-bottom: var(--space-5);
-  }
-
-  .bottom-tabs ~ .site-footer {
-    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--space-4));
   }
 }

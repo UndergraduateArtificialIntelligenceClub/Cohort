@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from "react";
 import type { Deadline } from "../types";
+import { courseLabel } from "../lib/courses";
 import { loadDismissed, saveDismissed } from "../lib/finishAsk";
-import { courseCount, daysUntil, longDate, makeForecast, makePlan, weekLabel } from "../lib/planner";
+import { bySchedule, courseCount, daysUntil, longDate, makeForecast, makePlan, weekLabel, whenLabel } from "../lib/planner";
 import { IconCheck, IconChevronRight } from "./Icons";
 
 // The calendar on phones (Calendar.tsx shows this in List view): the same Next up, Did you finish? and
@@ -37,7 +38,7 @@ function dayHeading(date: string, today: string): string {
   return longDate(date);
 }
 
-const byDate = (a: Deadline, b: Deadline) => a.date.localeCompare(b.date) || a.course.localeCompare(b.course);
+const byDate = (a: Deadline, b: Deadline) => bySchedule(a, b) || courseLabel(a).localeCompare(courseLabel(b));
 
 type RowProps = {
   deadline: Deadline;
@@ -55,7 +56,7 @@ export function AgendaRow({ deadline: d, color, onOpen, onToggleDone }: RowProps
         className="ag-tick"
         onClick={() => onToggleDone(d)}
         aria-pressed={!!d.done}
-        aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${d.course} ${d.title}`}
+        aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${courseLabel(d)} ${d.title}`}
       >
         <span>{d.done && <IconCheck size={14} />}</span>
       </button>
@@ -63,7 +64,8 @@ export function AgendaRow({ deadline: d, color, onOpen, onToggleDone }: RowProps
         <span className="ag-title">{d.title}</span>
         <span className="ag-meta">
           <i className="dot" />
-          {d.course}
+          {courseLabel(d)}
+          {d.time && ` · ${whenLabel(d)}`}
           {d.weight != null && ` · ${d.weight}%`}
         </span>
       </button>
@@ -99,9 +101,9 @@ function AgendaList({ deadlines, courseColors, today, onOpen, onToggleDone, onSh
 
   const row = (d: Deadline) => (
     <AgendaRow
-      key={d.id ?? `${d.course}-${d.title}-${d.date}`}
+      key={d.id ?? `${courseLabel(d)}-${d.title}-${d.date}`}
       deadline={d}
-      color={courseColors[d.course]}
+      color={courseColors[courseLabel(d)]}
       onOpen={onOpen}
       onToggleDone={onToggleDone}
     />
@@ -132,16 +134,17 @@ function AgendaList({ deadlines, courseColors, today, onOpen, onToggleDone, onSh
           Next up
         </h2>
         {hero ? (
-          <div className="ag-hero" style={courseVar(courseColors[hero.course])}>
+          <div className="ag-hero" style={courseVar(courseColors[courseLabel(hero)])}>
             <span className="ag-meta">
               <i className="dot" />
-              {hero.course}
+              {courseLabel(hero)}
             </span>
             <button type="button" className="ag-hero-title" onClick={() => onOpen(hero)}>
               {hero.title}
             </button>
             <p className="ag-hero-when">
               <strong>{countdown(hero.date, today)}</strong> · {longDate(hero.date)}
+              {hero.time && ` · ${whenLabel(hero)}`}
               {hero.weight != null && ` · ${hero.weight}% of grade`}
             </p>
             <div className="ag-hero-actions">
@@ -172,12 +175,12 @@ function AgendaList({ deadlines, courseColors, today, onOpen, onToggleDone, onSh
           </h2>
           <ul className="ag-list">
             {plan.askFinished.map((d) => (
-              <li key={d.id} className="ag-ask" style={courseVar(courseColors[d.course])}>
+              <li key={d.id} className="ag-ask" style={courseVar(courseColors[courseLabel(d)])}>
                 <button type="button" className="ag-main" onClick={() => onOpen(d)}>
                   <span className="ag-title">{d.title}</span>
                   <span className="ag-meta">
                     <i className="dot" />
-                    {d.course} · {longDate(d.date)}
+                    {courseLabel(d)} · {longDate(d.date)}
                   </span>
                 </button>
                 <button type="button" className="btn" onClick={() => onToggleDone(d)}>

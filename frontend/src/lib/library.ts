@@ -39,7 +39,7 @@ function cleanDeadlines(raw: unknown, course: string): Deadline[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((d) => {
     if (typeof d !== "object" || d === null) return [];
-    const { title, date, category, source_text, weight } = d as Record<string, unknown>;
+    const { title, date, time, category, source_text, weight } = d as Record<string, unknown>;
     if (typeof title !== "string" || !title.trim()) return [];
     if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
     if (!CATEGORIES.includes(category as Category)) return [];
@@ -48,6 +48,8 @@ function cleanDeadlines(raw: unknown, course: string): Deadline[] {
         course,
         title,
         date,
+        // Entries shared before due times existed have none; a bad one is dropped rather than the whole deadline
+        time: typeof time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null,
         category: category as Category,
         source_text: typeof source_text === "string" ? source_text : "",
         weight: typeof weight === "number" && Number.isFinite(weight) ? weight : null,
@@ -89,11 +91,25 @@ export async function searchLibrary(query: string): Promise<SharedSyllabus[]> {
     .filter((s) => s.deadlines.length > 0);
 }
 
+// Every course in the library this term, e.g. ["CMPUT 174", "STAT 151"], for the review popup's course name
+// suggestions. Only the names: never who shared them.
+export async function libraryCourses(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("shared_syllabi")
+    .select("course")
+    .gte("last_deadline", todayISO())
+    .limit(1000);
+  if (error) throw new Error(`Couldn't load the course list: ${error.message}`);
+  return [...new Set(data.map((row) => row.course))].sort();
+}
+
 // Share deadlines the user just confirmed, one library entry per course.
 // Sharing the same course again replaces the user's earlier copy.
 export async function shareDeadlines(deadlines: Deadline[], instructor: string | null): Promise<void> {
   const byCourse = new Map<string, Deadline[]>();
   for (const d of deadlines) {
+    // Personal items have no course and never leave the user's own calendar
+    if (d.course === null) continue;
     const course = normalizeCourse(d.course);
     if (!course) continue;
     // Only the syllabus facts; never the user's own id or done status
@@ -101,6 +117,7 @@ export async function shareDeadlines(deadlines: Deadline[], instructor: string |
       course,
       title: d.title,
       date: d.date,
+      time: d.time ?? null,
       category: d.category,
       source_text: d.source_text,
       weight: d.weight ?? null,

@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { GoogleIcon, IconAlert, IconCheck, IconExternal, IconEye, IconEyeOff, IconInfo, Logo } from "../components/Icons";
 import LoginDemo from "../components/LoginDemo";
 import { APP_NAME } from "../lib/config";
-import { clearPendingConsent, consentStamp, rememberConsentForRedirect } from "../lib/legal";
 import { supabase } from "../lib/supabase";
+import ForgotPassword from "./ForgotPassword";
 
 // Login and signup with @ualberta.ca emails: issue #31. Continue with Google: issue #65.
 // Shown by App.tsx instead of the whole app when nobody is logged in (no route of its own).
@@ -39,7 +39,6 @@ const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-
 const btn = `inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 font-medium transition-colors active:enabled:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`;
 const btnSecondary = `${btn} border-(--border-strong) bg-(--surface) shadow-[0_1px_2px_rgba(28,26,23,0.05)] hover:enabled:border-(--border-hover) hover:enabled:bg-(--subtle)`;
 const btnPrimary = `${btn} border-(--ink) bg-(--ink) text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(28,26,23,0.2)] hover:enabled:border-(--ink-hover) hover:enabled:bg-(--ink-hover)`;
-const legalLink = `font-medium text-(--accent) underline underline-offset-[3px] ${focusRing}`;
 const input =
   "h-8 w-full rounded-md border border-(--border-strong) bg-(--surface) px-2.5 shadow-[0_1px_2px_rgba(28,26,23,0.05)] transition-[border-color,box-shadow] placeholder:text-(--ink-3) hover:not-focus:border-(--border-hover) focus:border-(--accent) focus:shadow-[0_0_0_3px_var(--accent-subtle)] focus:outline-none";
 
@@ -50,31 +49,15 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<Message | null>(oauthError);
   const [busy, setBusy] = useState<Busy>(null);
-  // Terms and Privacy checkbox (issue #61). Starts unticked on purpose: agreeing has to be the user's own click.
-  const [agreed, setAgreed] = useState(false);
-  const [agreeError, setAgreeError] = useState(false);
-  const agreeRef = useRef<HTMLInputElement>(null);
-
-  // Creating an account (email or Google) needs the box ticked. Returns false and points at the box if it isn't.
-  function checkAgreed() {
-    if (agreed) return true;
-    setAgreeError(true);
-    agreeRef.current?.focus();
-    return false;
-  }
+  const [forgot, setForgot] = useState(false);
 
   // Clear a Google error out of the address bar so a refresh doesn't show it again
   useEffect(() => {
-    if (!oauthError()) return;
-    window.history.replaceState(null, "", window.location.pathname);
-    clearPendingConsent();
+    if (oauthError()) window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   async function signInWithGoogle() {
     setMessage(null);
-    // Google can create a new account, so it needs the box ticked too. The stamp is saved after Google sends them back.
-    if (!checkAgreed()) return;
-    rememberConsentForRedirect();
     setBusy("google");
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -107,7 +90,6 @@ function Login() {
       setMessage({ text: `Please sign up with your @${SCHOOL_DOMAIN} email.`, kind: "error" });
       return;
     }
-    if (mode === "signup" && !checkAgreed()) return;
 
     setBusy(mode);
     try {
@@ -126,8 +108,7 @@ function Login() {
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
-          // data: which Terms version they agreed to and when, saved on the account (issue #61)
-          options: { emailRedirectTo: window.location.origin, data: consentStamp() },
+          options: { emailRedirectTo: window.location.origin },
         });
         if (error) {
           setMessage({ text: error.message, kind: "error" });
@@ -149,6 +130,8 @@ function Login() {
     e.preventDefault();
     submit("signin");
   }
+
+  if (forgot) return <ForgotPassword email={email} onBack={() => setForgot(false)} />;
 
   return (
     // flex-1 (not full screen height) leaves room for the Terms/Privacy footer that App.tsx puts under this page
@@ -191,43 +174,6 @@ function Login() {
             </p>
           </div>
 
-          {/* Terms agreement (issue #61): needed for Create account and Continue with Google, so it sits above both */}
-          <div className="flex flex-col gap-1">
-            <div className="flex items-start gap-2 text-(--ink-2)">
-              <input
-                ref={agreeRef}
-                id={`${id}-agree`}
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => {
-                  setAgreed(e.target.checked);
-                  if (e.target.checked) setAgreeError(false);
-                }}
-                aria-invalid={agreeError}
-                aria-describedby={agreeError ? `${id}-agree-error` : undefined}
-                className={`checkbox mt-0.5 ${focusRing}`}
-              />
-              {/* Clicking a link inside the label opens it without ticking the box (browsers skip links in labels) */}
-              <label htmlFor={`${id}-agree`}>
-                I agree to the{" "}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" className={legalLink}>
-                  Terms of Service
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>{" "}
-                and{" "}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className={legalLink}>
-                  Privacy Policy
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              </label>
-            </div>
-            {agreeError && (
-              <p id={`${id}-agree-error`} className="text-xs text-(--danger)">
-                Please agree to the Terms and Privacy Policy to create an account or continue with Google.
-              </p>
-            )}
-          </div>
-
           {/* Works for both signing in and creating an account */}
           <button type="button" onClick={signInWithGoogle} disabled={busy !== null} className={`${btnSecondary} w-full`}>
             {busy === "google" ? <Spinner /> : <GoogleIcon />}
@@ -255,9 +201,19 @@ function Login() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor={`${id}-password`} className="text-xs font-medium text-(--ink-2)">
-                Password
-              </label>
+              <div className="flex items-baseline justify-between gap-2">
+                <label htmlFor={`${id}-password`} className="text-xs font-medium text-(--ink-2)">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setForgot(true)}
+                  disabled={busy !== null}
+                  className={`text-xs font-medium text-(--accent) underline-offset-[3px] hover:underline ${focusRing}`}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   id={`${id}-password`}

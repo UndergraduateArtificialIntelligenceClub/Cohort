@@ -86,7 +86,7 @@ function NotificationSettings({ onClose }: { onClose: () => void }) {
           <span>
             <span className="option-label">Deadline reminders</span>
             <span className="muted">
-              The evening before each deadline, and 3 days before exams and anything worth 15% or more.
+              The evening before anything on your calendar, and 3 days before exams and anything worth 15% or more.
             </span>
           </span>
         </label>

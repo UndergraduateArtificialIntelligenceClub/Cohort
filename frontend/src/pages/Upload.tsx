@@ -1,13 +1,14 @@
 // Upload page UI: issue #28
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import CanvasImport from "../components/CanvasImport";
 import ReviewPopup from "../components/ReviewPopup";
 import SharedLibrary from "../components/SharedLibrary";
 import { IconAlert, IconArrowRight, IconUpload } from "../components/Icons";
 import { API } from "../lib/config";
 import { saveDeadlines } from "../lib/deadlines";
 import { markUsed, shareDeadlines, type SharedSyllabus } from "../lib/library";
-import type { Deadline, ParseResponse } from "../types";
+import type { Deadline, ParseResponse, UndatedItem } from "../types";
 import { authHeaders } from "../lib/supabase";
 import { useIsPhone } from "../lib/useIsPhone";
 
@@ -18,12 +19,15 @@ function Upload() {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [pending, setPending] = useState<Deadline[] | null>(null);
+  // What the review popup is showing: undated items and the syllabus text only come from your own upload
+  const [pending, setPending] = useState<{ deadlines: Deadline[]; undated: UndatedItem[]; text: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
   // Confirmed deadlines that failed to save, kept so the user can retry instead of losing them
-  const [unsaved, setUnsaved] = useState<Deadline[] | null>(null);
+  const [unsaved, setUnsaved] = useState<{ parsed: Deadline[]; added: Deadline[] } | null>(null);
   // Where the deadlines under review came from: a classmate's shared syllabus (its id), or null for your own upload
   const [fromShared, setFromShared] = useState<string | null>(null);
+  // A Canvas import only has upcoming items and no weights, so sharing it would replace a fuller syllabus in the library (#62)
+  const [fromCanvas, setFromCanvas] = useState(false);
   const [instructor, setInstructor] = useState<string | null>(null);
   // Share your own uploads to the course library (#66)
   const [share, setShare] = useState(true);
@@ -32,24 +36,26 @@ function Upload() {
   const isPhone = useIsPhone();
   const [pasteOpen, setPasteOpen] = useState(false);
 
-  // Save what the user confirmed in the review popup, then show it on the calendar
-  async function save(confirmed: Deadline[]) {
-    if (confirmed.length === 0) return;
+  // Save what the user confirmed in the review popup, then show it on the calendar.
+  // added is undated items the user gave a date. Those dates are the user's guess, not the syllabus's,
+  // so they stay out of the course library for now.
+  async function save(parsed: Deadline[], added: Deadline[]) {
+    if (parsed.length + added.length === 0) return;
     setSaving(true);
     setError("");
     try {
-      await saveDeadlines(confirmed);
+      await saveDeadlines([...parsed, ...added]);
       setUnsaved(null);
       // The library is a bonus: if it fails, the user's own deadlines are already saved, so carry on
       try {
         if (fromShared) await markUsed(fromShared);
-        else if (share) await shareDeadlines(confirmed, instructor);
+        else if (share && !fromCanvas && parsed.length > 0) await shareDeadlines(parsed, instructor);
       } catch (e) {
         console.error(e);
       }
       navigate("/");
     } catch (e) {
-      setUnsaved(confirmed);
+      setUnsaved({ parsed, added });
       setError(e instanceof Error ? e.message : "Couldn't save deadlines.");
     } finally {
       setSaving(false);
@@ -102,8 +108,10 @@ function Upload() {
       }
 
       setFromShared(null);
+      setFromCanvas(false);
       setInstructor(data.instructor);
-      setPending(data.deadlines);
+      // An older backend sends neither; fall back to what was pasted for the course name check
+      setPending({ deadlines: data.deadlines, undated: data.undated ?? [], text: data.text ?? (file ? null : text) });
     } catch (e) {
       if (e instanceof TypeError) {
         setError("Couldn't reach the server. Is the backend running?");
@@ -126,7 +134,7 @@ function Upload() {
         </span>
       )}
       {unsaved && !saving && (
-        <button type="button" onClick={() => save(unsaved)} className="btn">
+        <button type="button" onClick={() => save(unsaved.parsed, unsaved.added)} className="btn">
           Try saving again
         </button>
       )}
@@ -155,8 +163,8 @@ function Upload() {
         <div>
           <h1 className="page-title">Upload</h1>
           <p className="page-sub">
-            Upload a PDF or paste the text. Assignments, labs, quizzes and exams are pulled out, and you review each one
-            before it's saved to your calendar.
+            Upload a PDF or paste the text. Assignments, labs, quizzes and exams are pulled out, and you check them
+            before they're saved to your calendar.
           </p>
         </div>
       </div>
@@ -166,8 +174,9 @@ function Upload() {
         onUse={(s: SharedSyllabus) => {
           setError("");
           setFromShared(s.id);
+          setFromCanvas(false);
           setInstructor(s.instructor);
-          setPending(s.deadlines);
+          setPending({ deadlines: s.deadlines, undated: [], text: null });
         }}
       />
 
@@ -246,6 +255,17 @@ function Upload() {
         )}
       </div>
 
+      <CanvasImport
+        disabled={loading || saving}
+        onImported={(deadlines) => {
+          setError("");
+          setFromShared(null);
+          setFromCanvas(true);
+          setInstructor(null);
+          setPending({ deadlines, undated: [], text: null });
+        }}
+      />
+
       {error && (
         <div className="notice notice-error" role="alert">
           <IconAlert />
@@ -270,11 +290,15 @@ function Upload() {
 
       {pending && (
         <ReviewPopup
-          pending={pending}
-          onDone={(confirmed) => {
+          deadlines={pending.deadlines}
+          undated={pending.undated}
+          source={fromShared ? "library" : fromCanvas ? "canvas" : "syllabus"}
+          syllabusText={pending.text}
+          onDone={(parsed, added) => {
             setPending(null);
-            save(confirmed);
+            save(parsed, added);
           }}
+          onCancel={() => setPending(null)}
         />
       )}
     </main>
