@@ -146,7 +146,7 @@ INSERT INTO public.metrics_admins (user_id)
 SELECT id FROM auth.users WHERE email = 'you@ualberta.ca' ON CONFLICT DO NOTHING;
 ```
 
-[supabase/scripts/test_usage_events.sql](supabase/scripts/test_usage_events.sql) checks it.
+Then run [supabase/migrations/20261127150000_admin_metrics_since.sql](supabase/migrations/20261127150000_admin_metrics_since.sql) **before** deploying the frontend that goes with it, or `/admin` shows an error until it runs. It makes the page say when counting started: active students, uploads and retention only exist from then, so earlier days show as "not recorded" instead of 0. It also adds the "Include team accounts" switch, so you can check your own activity is being recorded. [supabase/scripts/test_usage_events.sql](supabase/scripts/test_usage_events.sql) checks both.
 
 ## Notifications
 Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.

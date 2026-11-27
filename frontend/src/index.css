@@ -2740,3 +2740,21 @@ body > [role="dialog"] {
     text-align: right;
   }
 }
+
+/* Launch metrics, round two: the team switch, and days before counting began (not recorded, not zero) */
+@layer components {
+  .admin-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .admin-bar-missing {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-top: 2px dotted var(--border-strong);
+  }
+}

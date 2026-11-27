@@ -55,6 +55,9 @@ export type ParseStats = {
 };
 export type Metrics = {
   generated_at: string;
+  // When usage counts began (the first event logged). Active users, uploads and retention only exist from here.
+  counting_since: string | null;
+  include_team: boolean;
   users: number;
   new_7d: number;
   activated: number;
@@ -66,7 +69,8 @@ export type Metrics = {
   week4_retention: Share;
   courses_per_person: { "1": number; "2": number; "3": number; "4": number; "5+": number; average: number | null };
   push_people: number;
-  daily: { date: string; signups: number; activated: number; active: number }[];
+  // active is null for days before counting_since: not recorded, which isn't the same as nobody
+  daily: { date: string; signups: number; activated: number; active: number | null }[];
   parsing: Partial<Record<"syllabus" | "canvas" | "library", ParseStats>>;
   library_live: number;
   top_courses: { course: string; students: number; waiting: number; shared: number }[];
@@ -75,8 +79,9 @@ export type Metrics = {
 };
 
 // Only works for people in metrics_admins; everyone else gets "Not allowed."
-export async function loadMetrics(): Promise<Metrics> {
-  const { data, error } = await supabase.rpc("admin_metrics");
+// includeTeam: count the team's own accounts too, to check your own activity is being recorded
+export async function loadMetrics(includeTeam = false): Promise<Metrics> {
+  const { data, error } = await supabase.rpc("admin_metrics", { p_include_team: includeTeam });
   if (error) throw new Error(error.message === "Not allowed." ? "Not allowed." : `Couldn't load metrics: ${error.message}`);
   return data as Metrics;
 }

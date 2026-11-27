@@ -1,6 +1,7 @@
--- Tests for the launch metrics: supabase/migrations/20261127140000_usage_events.sql.
+-- Tests for the launch metrics: supabase/migrations/20261127140000_usage_events.sql and
+-- 20261127150000_admin_metrics_since.sql.
 --
--- How to run: after running that migration, paste the whole file into Supabase → SQL Editor and run it,
+-- How to run: after running those migrations, paste the whole file into Supabase → SQL Editor and run it,
 -- or `psql "$DATABASE_URL" -f supabase/scripts/test_usage_events.sql`.
 --
 -- It adds two test users, logs events as one of them through row-level security, and checks that only small
@@ -155,6 +156,21 @@ BEGIN
         RAISE EXCEPTION 'FAIL: admin_metrics returned an email or a user id';
     END IF;
     RAISE NOTICE 'ok: an admin gets totals, without emails or ids, and admins are left out';
+
+    -- 20261127150000_admin_metrics_since.sql: when counting began, and days before it aren't shown as 0
+    IF m->>'counting_since' IS NULL THEN RAISE EXCEPTION 'FAIL: counting_since is missing'; END IF;
+    IF (m->'daily'->-1->>'active') IS NULL THEN RAISE EXCEPTION 'FAIL: today''s active count is missing'; END IF;
+    IF (SELECT min(created_at) FROM public.usage_events) > now() - INTERVAL '29 days'
+       AND m->'daily'->0->'active' <> 'null'::jsonb THEN
+        RAISE EXCEPTION 'FAIL: a day before counting began shows % active instead of not recorded', m->'daily'->0->'active';
+    END IF;
+    RAISE NOTICE 'ok: days before counting began show as not recorded';
+
+    -- The team switch counts admins too
+    IF (public.admin_metrics(true)->>'users')::int <> (SELECT n FROM expected_users) + 1 THEN
+        RAISE EXCEPTION 'FAIL: admin_metrics(true) didn''t count the admin';
+    END IF;
+    RAISE NOTICE 'ok: Include team accounts counts the team too';
 END $$;
 RESET ROLE;
 

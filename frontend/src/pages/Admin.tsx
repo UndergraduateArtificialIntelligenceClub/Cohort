@@ -9,6 +9,17 @@ function pct(part: number, whole: number): string {
   return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—";
 }
 
+// "Nov 27, 4:17 p.m." in Edmonton time, like the rest of the app's server-side times
+function timeLabel(iso: string): string {
+  return new Date(iso).toLocaleString("en-CA", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Edmonton",
+  });
+}
+
 // "Dec 3" from "2026-12-03", without the browser's time zone moving it a day
 function shortDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -19,10 +30,11 @@ function Admin() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [includeTeam, setIncludeTeam] = useState(false);
 
   // State only changes once the totals arrive, so the first load can run straight from the effect
-  function load() {
-    loadMetrics()
+  function load(team = includeTeam) {
+    loadMetrics(team)
       .then((m) => {
         setMetrics(m);
         setError("");
@@ -31,12 +43,13 @@ function Admin() {
       .finally(() => setLoading(false));
   }
 
-  function refresh() {
+  function refresh(team = includeTeam) {
     setLoading(true);
-    load();
+    load(team);
   }
 
-  useEffect(load, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- first load only; the switch and Refresh reload
+  useEffect(() => load(), []);
 
   if (error === "Not allowed.") {
     return (
@@ -53,21 +66,46 @@ function Admin() {
         <div>
           <h1 className="page-title">Launch metrics</h1>
           <p className="page-sub">
-            Totals across everyone, with the team's own accounts left out.
-            {metrics && ` Updated ${new Date(metrics.generated_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}.`}
+            Totals across everyone{includeTeam ? ", including the team's own accounts" : ", with the team's own accounts left out"}.
+            {metrics && ` Updated ${timeLabel(metrics.generated_at)}.`}
           </p>
         </div>
         <div className="page-actions">
-          <button type="button" className="btn" onClick={refresh} disabled={loading}>
+          <label className="admin-switch">
+            <input
+              type="checkbox"
+              checked={includeTeam}
+              disabled={loading}
+              onChange={(e) => {
+                setIncludeTeam(e.target.checked);
+                refresh(e.target.checked);
+              }}
+            />
+            Include team accounts
+          </label>
+          <button type="button" className="btn" onClick={() => refresh()} disabled={loading}>
             {loading ? <span className="spinner" /> : null} Refresh
           </button>
         </div>
       </div>
 
       {error && <p className="notice notice-error">{error}</p>}
+      {metrics && <CountingSince since={metrics.counting_since} />}
       {!metrics && loading && <p className="muted">Loading…</p>}
       {metrics && <Dashboard m={metrics} />}
     </main>
+  );
+}
+
+// Active users, uploads and retention come from usage counts, which only exist from the day they went live.
+// Signups, activation, courses and study buddy come from tables with full history.
+function CountingSince({ since }: { since: string | null }) {
+  return (
+    <p className="notice notice-info">
+      {since
+        ? `Usage counts started ${timeLabel(since)}. Active students, uploads and retention only cover the time since then, and earlier days show as not recorded. Signups, activation, courses and study buddy go back to the start.`
+        : "No usage counts yet. Active students, uploads and retention start filling in once someone opens the app."}
+    </p>
   );
 }
 
@@ -104,7 +142,7 @@ function Dashboard({ m }: { m: Metrics }) {
       </div>
 
       <section className="panel admin-panel">
-        <h2 className="section-title">Uploads, last 30 days</h2>
+        <h2 className="section-title">Uploads, last 30 days{m.counting_since ? ` (counted since ${timeLabel(m.counting_since)})` : ""}</h2>
         <p className="muted admin-note">
           "Saved unchanged" means nothing was removed and no course renamed. How much people remove is the best
           sign of how accurate the parser is.
@@ -230,7 +268,9 @@ function DailyBars({
   unit: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(1, ...rows.map((r) => r[field]));
+  const value = (r: Metrics["daily"][number]) => r[field];
+  const label = (r: Metrics["daily"][number]) => (value(r) === null ? "not recorded" : `${value(r)} ${unit}`);
+  const max = Math.max(1, ...rows.map((r) => value(r) ?? 0));
   const shown = hover ?? rows.length - 1;
   const day = rows[shown];
 
@@ -240,7 +280,7 @@ function DailyBars({
         <h2 className="section-title">{title}</h2>
         {day && (
           <span className="muted tabular" aria-live="polite">
-            {shortDate(day.date)}: {day[field]} {unit}
+            {shortDate(day.date)}: {label(day)}
           </span>
         )}
       </div>
@@ -250,12 +290,16 @@ function DailyBars({
             key={r.date}
             type="button"
             className={`admin-bar-hit${i === shown ? " is-current" : ""}`}
-            aria-label={`${shortDate(r.date)}: ${r[field]} ${unit}`}
+            aria-label={`${shortDate(r.date)}: ${label(r)}`}
             onMouseEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
           >
-            <span className="admin-bar" style={{ height: `${(r[field] / max) * 100}%` }} />
+            {value(r) === null ? (
+              <span className="admin-bar-missing" />
+            ) : (
+              <span className="admin-bar" style={{ height: `${((value(r) ?? 0) / max) * 100}%` }} />
+            )}
           </button>
         ))}
       </div>
@@ -277,7 +321,7 @@ function DailyBars({
             {rows.map((r) => (
               <tr key={r.date}>
                 <th scope="row">{shortDate(r.date)}</th>
-                <td>{r[field]}</td>
+                <td>{value(r) ?? "not recorded"}</td>
               </tr>
             ))}
           </tbody>
