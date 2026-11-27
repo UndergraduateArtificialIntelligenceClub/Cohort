@@ -179,6 +179,8 @@ function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>
+      {/* Small Terms and Privacy links at the bottom of every page, so they're always reachable (#61) */}
+      <Footer inApp />
     </BrowserRouter>
   );
 }
