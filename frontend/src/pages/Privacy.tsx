@@ -4,7 +4,8 @@ import { CONTACT_EMAIL } from "../lib/legal";
 // Privacy Policy: issue #61. Opens logged in and logged out (see App.tsx).
 // Every promise here should match the code: what's stored (supabase/migrations/), what other students see
 // (study buddy first name only, library never shows the uploader), what's kept after an account is deleted
-// (study buddy reports). If a change makes any of it untrue, update this page in the same PR and change
+// (study buddy reports), and the usage counts (usage_events, which must never hold syllabus text, deadlines or
+// messages). If a change makes any of it untrue, update this page in the same PR and change
 // TERMS_VERSION in src/lib/legal.ts so everyone is asked to agree again.
 function Privacy() {
   return (
@@ -13,7 +14,7 @@ function Privacy() {
       <p>
         Cohort is a student project made by UAIS, a student club at the University of Alberta. The Cohort team is
         responsible for the information you give Cohort. This policy explains what we collect, why, who can see it
-        and how to delete it. We don't sell your data, show ads or use tracking or analytics tools.
+        and how to delete it. We don't sell your data, show ads or use outside analytics services.
       </p>
 
       <h2>What data we collect</h2>
@@ -47,11 +48,18 @@ function Privacy() {
           <strong>Your agreement:</strong> which version of these Terms and this Privacy Policy you agreed to, and
           when.
         </li>
+        <li>
+          <strong>How Cohort gets used:</strong> simple counts, kept in our own database. For example, which days you
+          open the app, whether a syllabus upload or Canvas import worked, how many dates it found and how many you
+          removed or fixed before saving, and the link that brought you to Cohort (like a post on Reddit). These
+          counts never include your syllabus, your deadlines or your messages.
+        </li>
       </ul>
       <p>
         Our hosting providers also keep standard technical logs, such as IP addresses, browser type and times of
         requests, which are used for security and fixing problems. Your browser stores your login and a few small
-        settings (like your calendar filters) on your own device.
+        settings (like your calendar filters) on your own device, plus the link that brought you to Cohort until you
+        log in.
       </p>
 
       <h2>How syllabus text is used</h2>
@@ -92,7 +100,8 @@ function Privacy() {
         A few members of the Cohort team can reach the database to run and fix the app. They only look at someone's
         data when they need to, for example to answer your request or to deal with a report. When you report a
         study buddy, we save your note, both of your email addresses and first names, and the last 100 messages of
-        the chat, so the team can decide whether to suspend that account.
+        the chat, so the team can decide whether to suspend that account. To see what's working, the team looks at
+        the usage counts added up across everyone, not person by person.
       </p>
 
       <h2>Services we use</h2>
@@ -149,7 +158,7 @@ function Privacy() {
       <p>
         Open the account menu and choose Delete account. That permanently deletes your account and everything linked
         to it: your deadlines, settings, notification sign-ups, study buddy requests, matches and chats (for both of
-        you), the syllabi you shared to the course library and your agreement record. It can't be undone. The only
+        you), the syllabi you shared to the course library, your usage counts and your agreement record. It can't be undone. The only
         thing kept is any study buddy report made by you or about you, as explained above.
       </p>
 

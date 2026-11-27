@@ -125,6 +125,29 @@ To set it up, run [supabase/migrations/20261127130000_terms_acceptances.sql](sup
 
 When the wording changes, change `TERMS_VERSION` and `LEGAL_UPDATED` in [frontend/src/lib/legal.ts](frontend/src/lib/legal.ts). Everyone is asked to agree again. While the version starts with `draft`, the pages show a "Draft, not final" banner.
 
+## Launch metrics
+`/admin` shows the team the numbers that say whether launch is working. It isn't in the nav, and only accounts in `metrics_admins` can load it. Everything on it is a total from `admin_metrics()`, with the team's own accounts left out. It never shows names, emails or anyone's own data, as the Privacy Policy promises.
+
+Most numbers come from tables we already have. The rest come from small events the app logs through `log_event()` into `usage_events` ([frontend/src/lib/metrics.ts](frontend/src/lib/metrics.ts)): one app open per day, whether an upload or Canvas import worked, and how many dates people removed or fixed in the review popup. Events only hold counts. Never add syllabus text, deadlines, course names or messages to one, and update the Privacy Policy if you add a new kind.
+
+What to watch, most important first:
+- **Activated in 24h:** new accounts that saved a school deadline within a day. Signups that never get a calendar don't count.
+- **Courses per student:** 4 or 5 means they rely on Cohort for the term. 1 means they tried it.
+- **Uploads:** how many reads fail, and how many dates people remove before saving. That's how accurate the parser really is.
+- **Biggest courses:** the library and study buddy only work once a course has enough students.
+- **Active this week, week 1 and week 4 retention, notifications on, study buddy chats where both people wrote.**
+
+To see where signups come from, put `?utm_source=` on every link you share, for example `https://<app>/?utm_source=reddit`, `discord`, `instagram` or `poster` (use a QR code for posters). The app keeps the first source a new account arrived with.
+
+To set it up, run [supabase/migrations/20261127140000_usage_events.sql](supabase/migrations/20261127140000_usage_events.sql), after the Terms and Privacy one, then deploy the frontend. If the frontend goes first nothing breaks, but events are lost until the migration runs. Then add each team member who should see the page, in the SQL Editor:
+
+```sql
+INSERT INTO public.metrics_admins (user_id)
+SELECT id FROM auth.users WHERE email = 'you@ualberta.ca' ON CONFLICT DO NOTHING;
+```
+
+[supabase/scripts/test_usage_events.sql](supabase/scripts/test_usage_events.sql) checks it.
+
 ## Notifications
 Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
 
