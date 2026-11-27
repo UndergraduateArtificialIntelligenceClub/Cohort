@@ -49,7 +49,7 @@ function Terms() {
       <p>
         Cohort uses AI to read deadlines from syllabi, and shared syllabi come from other students. Either can be
         wrong, out of date or missing something. Always check dates, times and weights against your course's
-        official syllabus and eClass, and follow your instructor if they disagree with Cohort. Cohort isn't an
+        official syllabus and Canvas, and follow your instructor if they disagree with Cohort. Cohort isn't an
         official University of Alberta service, and we're not responsible for a missed or late deadline.
       </p>
 
