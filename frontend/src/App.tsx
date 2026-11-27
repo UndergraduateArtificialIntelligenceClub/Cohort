@@ -3,6 +3,7 @@ import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router";
 import type { Session } from "@supabase/supabase-js";
 import { APP_NAME } from "./lib/config";
 import { loadTermsStatus, type TermsStatus } from "./lib/legal";
+import { logEvent, logSignupSource, rememberSource } from "./lib/metrics";
 import { supabase, supabaseConfigured } from "./lib/supabase";
 import { useUnreadCount } from "./lib/useUnreadCount";
 import AccountMenu from "./components/AccountMenu";
@@ -12,6 +13,7 @@ import { IconBell, IconCalendar, IconUpload, IconUsers, Logo } from "./component
 import NotificationListener from "./components/NotificationListener";
 import NotificationSettings from "./components/NotificationSettings";
 import AcceptTerms from "./pages/AcceptTerms";
+import Admin from "./pages/Admin";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
@@ -21,6 +23,9 @@ import Terms from "./pages/Terms";
 import Upload from "./pages/Upload";
 
 const openedFromResetLink = new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
+
+// Which link brought this visitor (?utm_source=...), saved before they log in. See lib/metrics.ts.
+rememberSource();
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
 // Popups (like the review step after upload) live in src/components.
@@ -75,6 +80,14 @@ function App() {
       stale = true;
     };
   }, [userId]);
+
+  // Usage counts (lib/metrics.ts): one app open per day, and where a new account came from. Only once they're
+  // in the app, so it isn't counted before they've agreed to the Privacy Policy that describes it.
+  useEffect(() => {
+    if (!userId || termsStatus !== "current") return;
+    logEvent("app_open");
+    logSignupSource();
+  }, [userId, termsStatus]);
 
   // No Supabase keys in frontend/.env: in development, skip login so teammates can still work on other pages.
   // On the live site, show an error instead of letting anyone in.
@@ -178,6 +191,8 @@ function App() {
         <Route path="/study-buddy" element={<StudyBuddy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
+        {/* Launch metrics for the team. Not in the nav; only people in metrics_admins can load it. */}
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>
   );

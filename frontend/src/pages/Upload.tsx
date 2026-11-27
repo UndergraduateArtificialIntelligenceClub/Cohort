@@ -8,6 +8,7 @@ import { IconAlert, IconArrowRight, IconUpload } from "../components/Icons";
 import { API } from "../lib/config";
 import { saveDeadlines } from "../lib/deadlines";
 import { markUsed, shareDeadlines, type SharedSyllabus } from "../lib/library";
+import { logEvent, type EventCounts } from "../lib/metrics";
 import type { Deadline, ParseResponse, UndatedItem } from "../types";
 import { authHeaders } from "../lib/supabase";
 import { useIsPhone } from "../lib/useIsPhone";
@@ -23,7 +24,7 @@ function Upload() {
   const [pending, setPending] = useState<{ deadlines: Deadline[]; undated: UndatedItem[]; text: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
   // Confirmed deadlines that failed to save, kept so the user can retry instead of losing them
-  const [unsaved, setUnsaved] = useState<{ parsed: Deadline[]; added: Deadline[] } | null>(null);
+  const [unsaved, setUnsaved] = useState<{ parsed: Deadline[]; added: Deadline[]; fixes: EventCounts } | null>(null);
   // Where the deadlines under review came from: a classmate's shared syllabus (its id), or null for your own upload
   const [fromShared, setFromShared] = useState<string | null>(null);
   // A Canvas import only has upcoming items and no weights, so sharing it would replace a fuller syllabus in the library (#62)
@@ -39,13 +40,15 @@ function Upload() {
   // Save what the user confirmed in the review popup, then show it on the calendar.
   // added is undated items the user gave a date. Those dates are the user's guess, not the syllabus's,
   // so they stay out of the course library for now.
-  async function save(parsed: Deadline[], added: Deadline[]) {
+  // fixes is what the student changed in the review popup, counted once the save works (lib/metrics.ts)
+  async function save(parsed: Deadline[], added: Deadline[], fixes: EventCounts) {
     if (parsed.length + added.length === 0) return;
     setSaving(true);
     setError("");
     try {
       await saveDeadlines([...parsed, ...added]);
       setUnsaved(null);
+      logEvent("review_saved", fromShared ? "library" : fromCanvas ? "canvas" : "syllabus", fixes);
       // The library is a bonus: if it fails, the user's own deadlines are already saved, so carry on
       try {
         if (fromShared) await markUsed(fromShared);
@@ -55,7 +58,7 @@ function Upload() {
       }
       navigate("/");
     } catch (e) {
-      setUnsaved({ parsed, added });
+      setUnsaved({ parsed, added, fixes });
       setError(e instanceof Error ? e.message : "Couldn't save deadlines.");
     } finally {
       setSaving(false);
@@ -106,6 +109,7 @@ function Upload() {
         if (!res.ok) throw new Error(await readError(res));
         data = await res.json();
       }
+      logEvent("parsed", "syllabus", { found: data.deadlines.length, undated: data.undated?.length ?? 0 });
 
       setFromShared(null);
       setFromCanvas(false);
@@ -113,6 +117,7 @@ function Upload() {
       // An older backend sends neither; fall back to what was pasted for the course name check
       setPending({ deadlines: data.deadlines, undated: data.undated ?? [], text: data.text ?? (file ? null : text) });
     } catch (e) {
+      logEvent("parse_failed", "syllabus");
       if (e instanceof TypeError) {
         setError("Couldn't reach the server. Is the backend running?");
       } else if (e instanceof Error) {
@@ -134,7 +139,7 @@ function Upload() {
         </span>
       )}
       {unsaved && !saving && (
-        <button type="button" onClick={() => save(unsaved.parsed, unsaved.added)} className="btn">
+        <button type="button" onClick={() => save(unsaved.parsed, unsaved.added, unsaved.fixes)} className="btn">
           Try saving again
         </button>
       )}
@@ -294,9 +299,9 @@ function Upload() {
           undated={pending.undated}
           source={fromShared ? "library" : fromCanvas ? "canvas" : "syllabus"}
           syllabusText={pending.text}
-          onDone={(parsed, added) => {
+          onDone={(parsed, added, fixes) => {
             setPending(null);
-            save(parsed, added);
+            save(parsed, added, fixes);
           }}
           onCancel={() => setPending(null)}
         />

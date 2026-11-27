@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { CATEGORIES, type Category, type Deadline, type UndatedItem } from "../types";
 import { mentionsCourse, normalizeCourse } from "../lib/courses";
 import { libraryCourses } from "../lib/library";
+import type { EventCounts } from "../lib/metrics";
 import { bySchedule, longDate, timeLabel, todayISO } from "../lib/planner";
 import { IconAlert, IconCheck, IconX } from "./Icons";
 
@@ -17,7 +18,8 @@ type Props = {
   syllabusText: string | null;
   // parsed: the deadlines kept, renamed to the course name in the header. added: undated items the student gave a
   // date, kept apart because the date is theirs, not the syllabus's, so it isn't shared to the course library.
-  onDone: (parsed: Deadline[], added: Deadline[]) => void;
+  // fixes: how much the student changed before saving, for the parse quality numbers on /admin (lib/metrics.ts)
+  onDone: (parsed: Deadline[], added: Deadline[], fixes: EventCounts) => void;
   onCancel: () => void;
 };
 
@@ -139,6 +141,7 @@ function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCance
   function confirm() {
     const parsed: Deadline[] = [];
     const added: Deadline[] = [];
+    let renamed = 0;
     for (const [n, g] of groups.entries()) {
       const course = normalizeCourse(names[g.course] ?? "");
       const s = summaries[n];
@@ -151,6 +154,7 @@ function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCance
         setError(`"${course.slice(0, 20)}..." is too long for a course name.`);
         return;
       }
+      if (course !== g.course) renamed++;
       parsed.push(...s.kept.map((d) => ({ ...d, course })));
       added.push(
         ...g.undated
@@ -166,7 +170,13 @@ function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCance
           }))
       );
     }
-    onDone(parsed, added);
+    onDone(parsed, added, {
+      found: deadlines.length,
+      undated: undated.length,
+      removed: removed.size,
+      renamed,
+      added: added.length,
+    });
   }
 
   if (groups.length === 0) {

@@ -2,6 +2,7 @@
 // student's courses at once, then hands them to the same review popup a syllabus upload uses.
 import { useId, useState, type FormEvent } from "react";
 import { importCanvas } from "../lib/canvas";
+import { logEvent } from "../lib/metrics";
 import type { Deadline } from "../types";
 import { IconAlert, IconArrowRight, IconCalendar, IconInfo } from "./Icons";
 
@@ -23,6 +24,7 @@ function CanvasImport({ disabled, onImported }: Props) {
     setMessage(null);
     try {
       const deadlines = await importCanvas(url);
+      logEvent("parsed", "canvas", { found: deadlines.length });
       if (deadlines.length === 0) {
         setMessage({ text: "Your Canvas calendar has no upcoming due dates right now.", kind: "info" });
         return;
@@ -31,6 +33,7 @@ function CanvasImport({ disabled, onImported }: Props) {
       setUrl("");
       onImported(deadlines);
     } catch (err) {
+      logEvent("parse_failed", "canvas");
       const text =
         err instanceof TypeError
           ? "Couldn't reach the server. Is the backend running?"

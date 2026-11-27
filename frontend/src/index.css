@@ -2555,3 +2555,172 @@ body > [role="dialog"] {
     text-decoration: underline;
   }
 }
+
+/* =========================================================
+   Launch metrics (/admin, pages/Admin.tsx). Team only.
+   ========================================================= */
+@layer components {
+  .admin > * + * {
+    margin-top: var(--space-4);
+  }
+
+  .admin-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-3);
+  }
+
+  .admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .admin-tile,
+  .admin-panel {
+    padding: var(--space-4);
+  }
+
+  .admin-tile-label {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .admin-tile-value {
+    margin-top: var(--space-1);
+    font: 600 var(--text-xl) / 1.2 var(--font-body);
+  }
+
+  .admin-tile-note,
+  .admin-axis {
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+  }
+
+  .admin-note {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+  }
+
+  /* Daily columns: each day is a full-height button, so the hover target is bigger than the bar */
+  .admin-bars {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    height: 120px;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .admin-bar-hit {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: default;
+  }
+
+  .admin-bar-hit:hover,
+  .admin-bar-hit.is-current {
+    background: var(--subtle);
+  }
+
+  .admin-bar-hit:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .admin-bar {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    background: var(--accent);
+    border-radius: 4px 4px 0 0;
+  }
+
+  .admin-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--space-1);
+  }
+
+  .admin-details {
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .admin-details summary {
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+
+  .admin-table-wrap {
+    overflow-x: auto;
+    margin-top: var(--space-3);
+  }
+
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .admin-table thead th {
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+
+  .admin-table tbody th {
+    font-weight: 500;
+  }
+
+  .admin-meters {
+    margin-top: var(--space-3);
+  }
+
+  .admin-meter {
+    display: grid;
+    grid-template-columns: 90px 1fr 40px;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .admin-meter + .admin-meter {
+    margin-top: var(--space-2);
+  }
+
+  .admin-meter-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-meter-track {
+    height: 8px;
+    background: var(--subtle);
+    border-radius: 4px;
+  }
+
+  .admin-meter-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+  }
+
+  .admin-meter-value {
+    text-align: right;
+  }
+}
