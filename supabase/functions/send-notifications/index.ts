@@ -87,7 +87,10 @@ Deno.serve(async (req) => {
           else gone.push(target.endpoint);
         } catch (e) {
           failed++;
-          console.error(`Push to ${new URL(target.endpoint).host} failed:`, String(e));
+          // The push service says why in the response body (Apple sends e.g. {"reason":"BadJwtToken"}),
+          // which the error message alone leaves out
+          const reason = e instanceof webpush.PushMessageError ? await e.response.text().catch(() => "") : "";
+          console.error(`Push to ${new URL(target.endpoint).host} failed:`, String(e), reason);
         }
       });
     })
