@@ -10,6 +10,12 @@ Category = Literal["assignment", "lab", "quiz", "midterm", "final", "other"]
 TIME_PATTERN = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$")
 
 
+def round_weight(value: float | None) -> float | None:
+    """Round a split weight to two decimals: 5% over 7 due dates is 0.71 each, not 0.7142857142857143,
+    which the calendar would otherwise print as is."""
+    return None if value is None else round(value, 2)
+
+
 class Deadline(BaseModel):
     course: str                  # e.g. "CMPUT 174"
     title: str                   # e.g. "Assignment 2"
@@ -34,6 +40,11 @@ class Deadline(BaseModel):
             return None
         return f"{int(match.group(1)):02d}:{match.group(2)}"
 
+    @field_validator("weight")
+    @classmethod
+    def clean_weight(cls, value: float | None) -> float | None:
+        return round_weight(value)
+
 
 # A graded item the syllabus gives no date for: a final exam the Registrar schedules later, participation,
 # anything "TBA". The review popup warns about these so the student can add a date; ones they skip aren't saved.
@@ -43,6 +54,11 @@ class UndatedItem(BaseModel):
     category: Category
     source_text: str
     weight: float | None = None
+
+    @field_validator("weight")
+    @classmethod
+    def clean_weight(cls, value: float | None) -> float | None:
+        return round_weight(value)
 
 
 # What Gemini is asked to return (its JSON schema is sent with the prompt), and what POST /import-canvas returns

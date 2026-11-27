@@ -237,6 +237,8 @@ function DeadlineModal({ deadline, courses, onClose, onSave, onDone, onDelete, o
                   type="number"
                   min={0}
                   max={100}
+                  // Split weights have decimals (5% over 7 due dates is 0.71 each), so don't snap to whole numbers
+                  step="any"
                   placeholder="Unknown"
                   value={edited.weight ?? ""}
                   // An empty box means the weight is unknown
