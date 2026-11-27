@@ -2524,6 +2524,16 @@ body > [role="dialog"] {
     margin-top: var(--space-2);
   }
 
+  /* Tailwind's reset removes list bullets, so put them back for the Terms and Privacy lists */
+  .legal-body ul {
+    padding-left: var(--space-5);
+    list-style: disc;
+  }
+
+  .legal-body li + li {
+    margin-top: var(--space-1);
+  }
+
   /* margin-top: auto pins it to the bottom of short pages (its parent is a full-height column, see OutsideApp in App.tsx) */
   .site-footer {
     display: flex;
