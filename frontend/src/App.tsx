@@ -194,6 +194,8 @@ function App() {
         {/* Launch metrics for the team. Not in the nav; only people in metrics_admins can load it. */}
         <Route path="/admin" element={<Admin />} />
       </Routes>
+      {/* Small Terms and Privacy links at the bottom of every page, so they're always reachable (#61) */}
+      <Footer inApp />
     </BrowserRouter>
   );
 }

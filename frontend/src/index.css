@@ -81,6 +81,13 @@
    Base
    ========================================================= */
 @layer base {
+  /* A full-height column, so the footer (margin-top: auto) sits at the bottom of short pages */
+  #root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+  }
+
   body {
     min-height: 100svh;
     background: var(--bg);
@@ -2131,6 +2138,15 @@
   /* Room at the bottom so the tabs never cover the end of a page */
   .page {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--space-6));
+  }
+
+  /* In the app the footer comes after the page, so the footer keeps that room above the tabs instead */
+  .page:has(+ .site-footer-app) {
+    padding-bottom: var(--space-5);
+  }
+
+  .site-footer-app {
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--space-4));
   }
 
   .page-head {
