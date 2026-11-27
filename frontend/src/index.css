@@ -1458,12 +1458,6 @@
     font-size: var(--text-md);
   }
 
-  /* Near 100% but not quite: worth a look, not a warning, since best-of-N and bonus marks can explain it */
-  .review-total.is-off {
-    display: block;
-    color: var(--ink-2);
-  }
-
   .review-warnings {
     display: flex;
     flex-direction: column;

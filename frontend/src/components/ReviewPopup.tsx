@@ -21,9 +21,6 @@ type Props = {
   onCancel: () => void;
 };
 
-// A weight total this close to 100% is shown as reassurance that everything was found. Further off it's left out,
-// not warned about: syllabi often give per-category weights or best-of-N, so the sum alone means little.
-const TOTAL_SLACK = 5;
 // Same limit as the CHECK on shared_syllabi.course
 const COURSE_MAX = 50;
 
@@ -65,25 +62,15 @@ function groupByCourse(deadlines: Deadline[], undated: UndatedItem[]): Group[] {
 const plural = (n: number, [one, many]: [string, string]) => `${n} ${n === 1 ? one : many}`;
 
 // "8 labs · 4 assignments · 1 midterm", in the app's usual category order
-function countLine(categories: Category[], separator = " · "): string {
+function countLine(categories: Category[]): string {
   return CATEGORIES.flatMap((c) => {
     const n = categories.filter((x) => x === c).length;
     return n ? [plural(n, NAMES[c])] : [];
-  }).join(separator);
+  }).join(" · ");
 }
 
 // 6.666... (a third of 20%) shows as 6.7%
 const percent = (weight: number) => `${Math.round(weight * 10) / 10}%`;
-
-// "Weights add up to 95% of the grade. Missing 5%: 7 assignments have no weight." Naming what has no weight
-// answers "where's the rest?" right away. Over 100% (bonus marks) just gives the total.
-function offTotal(total: number, unweighted: Category[]): string {
-  const line = `Weights add up to ${percent(total)} of the grade.`;
-  if (total > 100) return line;
-  const missing = `${line} Missing ${percent(100 - total)}`;
-  if (unweighted.length === 0) return `${missing}.`;
-  return `${missing}: ${countLine(unweighted, ", ")} ${unweighted.length === 1 ? "has" : "have"} no weight.`;
-}
 
 function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCancel }: Props) {
   const id = useId();
@@ -129,8 +116,7 @@ function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCance
     const kept = g.dated.filter(({ i }) => !removed.has(i)).map(({ d }) => d);
     const added = g.undated.filter(({ i }) => dates[i]).map(({ u }) => u);
     // Undated items count toward the total even when skipped: they're still part of the grade
-    const graded = [...kept, ...g.undated.map(({ u }) => u)];
-    const weights = graded.map((x) => x.weight);
+    const weights = [...kept, ...g.undated.map(({ u }) => u)].map((x) => x.weight);
     const total = weights.reduce<number>((sum, w) => sum + (w ?? 0), 0);
     const name = normalizeCourse(names[g.course] ?? "");
     return {
@@ -138,12 +124,11 @@ function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCance
       added,
       count: kept.length + added.length,
       categories: [...kept, ...added].map((x) => x.category as Category),
-      showTotal: weights.some((w) => w != null) && Math.abs(total - 100) <= TOTAL_SLACK,
-      total,
-      // Split weights are rounded (5% over 7 dates is 0.71 each), so 99.97% counts as all of it
-      complete: Math.round(total * 10) / 10 === 100,
-      // When the total falls short, these are the likely reason, so the student knows what to look at
-      unweighted: graded.filter((x) => x.weight == null).map((x) => x.category as Category),
+      // A total of exactly 100% gets a check mark as reassurance that everything was found. Anything else shows
+      // nothing: a gap usually comes from splitting a group's weight or best-of-N grading, which the student
+      // can't act on, and "Missing 1.5%" only made the app look wrong. Split weights are rounded (5% over
+      // 7 dates is 0.71 each), so 99.97% counts as 100.
+      complete: weights.some((w) => w != null) && Math.round(total * 10) / 10 === 100,
       allPast: kept.length > 0 && kept.every((d) => d.date < today),
       // Soft warning only: a typo is likely, but the syllabus could spell the code some other way
       notInSyllabus: !!syllabusText && !!name && name !== g.course && !mentionsCourse(syllabusText, name),
@@ -242,15 +227,12 @@ function ReviewPopup({ deadlines, undated, source, syllabusText, onDone, onCance
               </div>
 
               {s.count > 0 && <p className="review-counts">{countLine(s.categories)}</p>}
-              {s.showTotal &&
-                (s.complete ? (
-                  <p className="review-total">
-                    <IconCheck size={14} />
-                    Weights add up to 100% of the grade
-                  </p>
-                ) : (
-                  <p className="review-total is-off">{offTotal(s.total, s.unweighted)}</p>
-                ))}
+              {s.complete && (
+                <p className="review-total">
+                  <IconCheck size={14} />
+                  Weights add up to 100% of the grade
+                </p>
+              )}
 
               {(s.notInSyllabus || s.allPast || g.undated.length > 0) && (
                 <ul className="review-warnings">
