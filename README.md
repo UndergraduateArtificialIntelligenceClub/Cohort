@@ -123,7 +123,7 @@ The Terms of Service and Privacy Policy are [frontend/src/pages/Terms.tsx](front
 
 To set it up, run [supabase/migrations/20261127130000_terms_acceptances.sql](supabase/migrations/20261127130000_terms_acceptances.sql) **before** deploying the frontend. Without it, every logged in user is stuck on the agree screen. [supabase/scripts/test_terms_acceptances.sql](supabase/scripts/test_terms_acceptances.sql) checks it.
 
-When the wording changes, change `TERMS_VERSION` in [frontend/src/lib/legal.ts](frontend/src/lib/legal.ts) (and "Last updated" in `LegalPage.tsx`). Everyone is asked to agree again. While the version starts with `draft`, the pages show a "Draft, not final" banner.
+When the wording changes, change `TERMS_VERSION` and `LEGAL_UPDATED` in [frontend/src/lib/legal.ts](frontend/src/lib/legal.ts). Everyone is asked to agree again. While the version starts with `draft`, the pages show a "Draft, not final" banner.
 
 ## Notifications
 Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.

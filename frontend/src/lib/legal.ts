@@ -4,8 +4,14 @@ import { supabase } from "./supabase";
 // The version people agree to. Change it whenever the wording changes in a way people need to agree to again:
 // everyone is asked once more the next time they open the app.
 // While it starts with "draft", the Terms and Privacy pages show a "Draft, not final" banner.
-export const TERMS_VERSION = "draft-2026-11-22";
+export const TERMS_VERSION = "2026-11-27";
 export const LEGAL_IS_DRAFT = TERMS_VERSION.startsWith("draft");
+
+// Shown as "Last updated" on both pages. Change it together with TERMS_VERSION.
+export const LEGAL_UPDATED = "November 27, 2026";
+
+// Where the Terms and Privacy pages send questions, reports and data requests.
+export const CONTACT_EMAIL = "cohort.app.team@gmail.com";
 
 // "current": agreed to this version. "updated": agreed only to an older one. "never": hasn't agreed yet.
 export type TermsStatus = "current" | "updated" | "never";
