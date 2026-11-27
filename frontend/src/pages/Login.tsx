@@ -3,6 +3,7 @@ import { GoogleIcon, IconAlert, IconCheck, IconExternal, IconEye, IconEyeOff, Ic
 import LoginDemo from "../components/LoginDemo";
 import { APP_NAME } from "../lib/config";
 import { supabase } from "../lib/supabase";
+import ForgotPassword from "./ForgotPassword";
 
 // Login and signup with @ualberta.ca emails: issue #31. Continue with Google: issue #65.
 // Shown by App.tsx instead of the whole app when nobody is logged in (no route of its own).
@@ -48,6 +49,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<Message | null>(oauthError);
   const [busy, setBusy] = useState<Busy>(null);
+  const [forgot, setForgot] = useState(false);
 
   // Clear a Google error out of the address bar so a refresh doesn't show it again
   useEffect(() => {
@@ -129,6 +131,8 @@ function Login() {
     submit("signin");
   }
 
+  if (forgot) return <ForgotPassword email={email} onBack={() => setForgot(false)} />;
+
   return (
     <div className="min-h-svh bg-bg">
       <main className="mx-auto grid min-h-svh max-w-[960px] grid-cols-1 content-start gap-8 px-4 py-8 md:px-6 md:py-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:content-center lg:items-center lg:gap-12">
@@ -196,9 +200,19 @@ function Login() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor={`${id}-password`} className="text-xs font-medium text-(--ink-2)">
-                Password
-              </label>
+              <div className="flex items-baseline justify-between gap-2">
+                <label htmlFor={`${id}-password`} className="text-xs font-medium text-(--ink-2)">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setForgot(true)}
+                  disabled={busy !== null}
+                  className={`text-xs font-medium text-(--accent) underline-offset-[3px] hover:underline ${focusRing}`}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   id={`${id}-password`}

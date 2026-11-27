@@ -11,8 +11,11 @@ import NotificationListener from "./components/NotificationListener";
 import NotificationSettings from "./components/NotificationSettings";
 import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import StudyBuddy from "./pages/StudyBuddy";
 import Upload from "./pages/Upload";
+
+const openedFromResetLink = new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
 
 // Each page lives in its own file in src/pages so pairs don't edit the same file.
 // Popups (like the review step after upload) live in src/components.
@@ -31,6 +34,7 @@ function App() {
   const unread = useUnreadCount();
   // Desktop: the Notifications sheet, opened from the bell in the nav (phones open it from the account menu)
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [recovering, setRecovering] = useState(openedFromResetLink);
 
   // On page load: are we already logged in? Then keep listening for login/logout
   useEffect(() => {
@@ -39,7 +43,11 @@ function App() {
       setSession(data.session);
       setChecking(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      setSession(newSession);
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      if (event === "SIGNED_OUT") setRecovering(false);
+    });
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -52,6 +60,9 @@ function App() {
 
   // Logged out: show only the login page, no nav. Logged in: show the app.
   if (supabaseConfigured && !session) return <Login />;
+  if (recovering && session) {
+    return <ResetPassword email={session.user.email} onDone={() => setRecovering(false)} />;
+  }
 
   return (
     <BrowserRouter>
