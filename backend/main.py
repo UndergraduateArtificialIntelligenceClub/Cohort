@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 import httpx
 from pydantic import BaseModel, ValidationError
-from pypdf import PdfReader 
+from pypdf import PageObject, PdfReader
 
 from models import Deadline, ParseResponse, SyllabusParse
 
@@ -250,17 +250,21 @@ def extract_deadlines(text: str) -> SyllabusParse:
         "Graded items with no date (TBA, a final exam scheduled later, participation, ongoing work) go in undated "
         "instead, with the same course, title, category, source_text and weight. A group with no dates "
         "(e.g., 'Weekly reflections, 10%') is one undated item with the group's total weight. "
-        "In a table with several date columns, the date is the one labelled Due Date (or Due), not other deadline columns. "
-        "Another dated column that still matters (e.g., 'Deadline for Active Participation', where missing it means "
-        "a zero on the lab) makes a separate deadline per row, titled like Lab 1 participation, with the same category "
-        "and weight null, so the item's weight isn't counted twice. "
+        # Decided by the column header, not by what missing it costs: the consequences are often explained pages
+        # away from the table, and judging them gave a different number of items on each run of the same syllabus.
+        "In a table with several date columns, the item's date is the column labelled Due Date (or Due). "
+        "Every other column whose header contains the word Deadline makes its own deadline for each row, titled with "
+        "the item and the header without 'Deadline for' ('Deadline for Individual Draft Copy' -> Lab 1: Individual "
+        "Draft Copy), with the same category and weight null, so the item's weight isn't counted twice. "
+        "A column whose header doesn't contain Deadline or Due is never a deadline, even if it has dates "
+        "(e.g., when something is posted or released, help session dates). "
         "If several dates are listed for one kind of item, make one deadline per date "
         "(e.g., 'Labs: Sept 10, 17, 24, Oct 1 (20% total)' -> four lab deadlines, 5% each). "
         "Ignore dates that are not deadlines: publication dates, document dates, add/drop deadlines, holidays. "
         "Ignore unfilled template text, such as 'Assignment [X] is due on [DATE].' "
         "If there is a range of dates, use the last date (e.g., 'Oct 1-5' -> Oct 5). "
-        "If something is optional, like a bonus assignment, include it. "
-        "if it has bonus points, include them in the weight with note (optional) in the title. "
+        "Include optional items, like a bonus assignment, and add (optional) to the end of the title "
+        "(e.g., Bonus Quiz (optional)). Their weight is the bonus marks they can add (e.g., 2 for a 2% bonus). "
         "\n\nSyllabus text:\n"
         + text
     )
@@ -317,6 +321,19 @@ def parse(req: ParseRequest, user: dict = Depends(require_user)):
     return extract_deadlines(req.text)
 
 
+def read_page(page: PageObject) -> str:
+    """One PDF page as text, keeping table rows on one line under their column headers.
+
+    Plain extraction lists a table cell by cell, so a row of seven dates (like STAT 151's lab table) turns into
+    a run of dates that Gemini had to match to headers by counting, and it picked the wrong column on most runs.
+    Layout mode keeps the columns lined up. It can fail on unusual fonts, so fall back to plain text then.
+    """
+    try:
+        return page.extract_text(extraction_mode="layout") or ""
+    except Exception:
+        return page.extract_text() or ""
+
+
 @app.post("/parse-pdf", response_model=SyllabusParse)
 def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
     file_size = file.size
@@ -340,9 +357,7 @@ def parse_pdf(file: UploadFile, user: dict = Depends(require_user)):
         text = ""
 
         for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text is not None:
-                text += page_text + "\n"
+            text += read_page(page) + "\n"
 
     except Exception:
         raise HTTPException(
