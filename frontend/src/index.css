@@ -2501,3 +2501,47 @@ body > [role="dialog"] {
     user-select: none;
   }
 }
+
+/* ---------- Terms, Privacy and the footer: issue #61 ---------- */
+@layer components {
+  .legal-body {
+    max-width: 68ch;
+    color: var(--ink-2);
+  }
+
+  .legal-body h2 {
+    margin: var(--space-6) 0 var(--space-2);
+    color: var(--ink);
+    font: 600 var(--text-lg) / 1.3 var(--font-heading);
+  }
+
+  .legal-body h2:first-child {
+    margin-top: 0;
+  }
+
+  .legal-body p + p,
+  .legal-body ul {
+    margin-top: var(--space-2);
+  }
+
+  /* margin-top: auto pins it to the bottom of short pages (its parent is a full-height column, see OutsideApp in App.tsx) */
+  .site-footer {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-5);
+    margin-top: auto;
+    padding: var(--space-4) var(--space-4) var(--space-5);
+    font-size: var(--text-sm);
+  }
+
+  .site-footer a {
+    color: var(--ink-3);
+    text-decoration: none;
+    text-underline-offset: 3px;
+  }
+
+  .site-footer a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+}

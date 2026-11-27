@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router";
 import { isInstalled, useInstallDialog } from "../lib/install";
 import { logOut } from "../lib/logout";
 import { useIsPhone } from "../lib/useIsPhone";
@@ -9,7 +10,8 @@ import NotificationSettings from "./NotificationSettings";
 import Sheet from "./Sheet";
 
 // The account button at the right of the top bar: your email on desktop, a person icon on phones.
-// It opens the account menu: notifications, installing Cohort, logging out and deleting your account.
+// It opens the account menu: notifications, installing Cohort, logging out, deleting your account, and the
+// Terms and Privacy links (#61).
 // Desktop shows the menu as a dropdown under the button; phones show it as a bottom sheet.
 function AccountMenu({ email }: { email: string | undefined }) {
   const [open, setOpen] = useState<"menu" | "steps" | "notifications" | "delete" | null>(null);
@@ -60,6 +62,15 @@ function AccountMenu({ email }: { email: string | undefined }) {
           <IconTrash size={20} />
           Delete account
         </button>
+      </li>
+      {/* Small links at the bottom: needed now and then, not every day (#61) */}
+      <li className="flex gap-4 border-t border-border py-3 text-xs">
+        <Link to="/terms" onClick={close} className="text-ink-3 hover:text-ink hover:underline">
+          Terms
+        </Link>
+        <Link to="/privacy" onClick={close} className="text-ink-3 hover:text-ink hover:underline">
+          Privacy
+        </Link>
       </li>
     </ul>
   );

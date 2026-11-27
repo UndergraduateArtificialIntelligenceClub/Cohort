@@ -118,6 +118,13 @@ Gemini only gets `ParseResponse`'s schema (`deadlines`, `undated`, `instructor`)
 
 Course names are stored normalized: trimmed, upper case, single spaces, and a space where the subject's letters first meet the number (`"cmput174"` → `"CMPUT 174"`, while `"INT D 137B"` stays as it is). The rule is `normalizeCourse()` in [frontend/src/lib/courses.ts](frontend/src/lib/courses.ts) and `public.normalize_course()` in [supabase/migrations/20261127120000_course_code_spacing.sql](supabase/migrations/20261127120000_course_code_spacing.sql), which every table's CHECK uses. To set it up, deploy the frontend first, then run that migration (an older page saving `"cmput174"` would be refused). [supabase/scripts/test_course_code_spacing.sql](supabase/scripts/test_course_code_spacing.sql) checks it.
 
+## Terms and Privacy
+The Terms of Service and Privacy Policy are [frontend/src/pages/Terms.tsx](frontend/src/pages/Terms.tsx) and [frontend/src/pages/Privacy.tsx](frontend/src/pages/Privacy.tsx). They open logged out too, so people can read them before signing up. After login, anyone who hasn't agreed to the current version gets one screen asking them to, before the app opens. That covers new accounts (Google or email), older accounts, and everyone again when the wording changes. Agreements are saved in `terms_acceptances` by the `accept_terms()` function, with the database's time, and users can't change them.
+
+To set it up, run [supabase/migrations/20261127130000_terms_acceptances.sql](supabase/migrations/20261127130000_terms_acceptances.sql) **before** deploying the frontend. Without it, every logged in user is stuck on the agree screen. [supabase/scripts/test_terms_acceptances.sql](supabase/scripts/test_terms_acceptances.sql) checks it.
+
+When the wording changes, change `TERMS_VERSION` in [frontend/src/lib/legal.ts](frontend/src/lib/legal.ts) (and "Last updated" in `LegalPage.tsx`). Everyone is asked to agree again. While the version starts with `draft`, the pages show a "Draft, not final" banner.
+
 ## Notifications
 Cohort sends push notifications: a reminder the evening before everything on your calendar, personal dates included (plus 3 days' notice for exams and anything worth 15% or more; personal dates never get this), and study buddy alerts for new matches and messages. The installed app's icon also shows how many study buddy chats are unread.
 

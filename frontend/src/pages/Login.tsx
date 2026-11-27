@@ -134,8 +134,9 @@ function Login() {
   if (forgot) return <ForgotPassword email={email} onBack={() => setForgot(false)} />;
 
   return (
-    <div className="min-h-svh bg-bg">
-      <main className="mx-auto grid min-h-svh max-w-[960px] grid-cols-1 content-start gap-8 px-4 py-8 md:px-6 md:py-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:content-center lg:items-center lg:gap-12">
+    // flex-1 (not full screen height) leaves room for the Terms/Privacy footer that App.tsx puts under this page
+    <div className="flex flex-1 flex-col bg-bg">
+      <main className="mx-auto grid w-full flex-1 max-w-[960px] grid-cols-1 content-start gap-8 px-4 py-8 md:px-6 md:py-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:content-center lg:items-center lg:gap-12">
         {/* On one column, display: contents lets the sign-in card sit between the intro and the demo */}
         <section className="max-lg:contents">
           <div className="inline-flex items-center gap-2 font-semibold max-lg:-mb-3 lg:mb-8">
