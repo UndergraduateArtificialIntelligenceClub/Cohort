@@ -73,7 +73,13 @@ function ForgotPassword({ email: typedEmail, onBack }: Props) {
         </button>
       </form>
 
-      <button type="button" onClick={onBack} className="link-button self-start text-xs text-(--ink-2)">
+      {/* Styled like the "Forgot password?" button on Login.tsx that brings people here.
+          The shared .link-button class it used to have was removed in #95. */}
+      <button
+        type="button"
+        onClick={onBack}
+        className="cursor-pointer self-start text-xs font-medium text-(--ink-2) underline underline-offset-[3px] hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent)"
+      >
         Back to sign in
       </button>
     </AuthCard>
